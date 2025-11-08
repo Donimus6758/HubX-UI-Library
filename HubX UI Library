@@ -16,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 
 HubX._gui = nil
 HubX._notificationsFrame = nil
+HubX._popupLayer = nil
 
 HubX.Theme = {
     Background = Color3.fromRGB(17, 17, 20),
@@ -74,8 +75,19 @@ local function createGui()
     layout.Padding = UDim.new(0, 6)
     layout.Parent = notiHolder
 
+    local popupLayer = Instance.new("Frame")
+    popupLayer.Name = "PopupLayer"
+    popupLayer.BackgroundTransparency = 1
+    popupLayer.BorderSizePixel = 0
+    popupLayer.Size = UDim2.new(1, 0, 1, 0)
+    popupLayer.Position = UDim2.new(0, 0, 0, 0)
+    popupLayer.ZIndex = 50
+    popupLayer.ClipsDescendants = false
+    popupLayer.Parent = gui
+
     HubX._gui = gui
     HubX._notificationsFrame = notiHolder
+    HubX._popupLayer = popupLayer
 end
 
 local function makeDraggable(frame, dragHandle)
@@ -982,6 +994,8 @@ function TabMethods:CreateDropdown(opts)
     local callback = opts.Callback or function() end
     local theme = HubX.Theme
 
+    createGui()
+
     local item = createElementBase(self, 46)
 
     local label = Instance.new("TextLabel")
@@ -1052,18 +1066,20 @@ function TabMethods:CreateDropdown(opts)
 
     local listFrame = Instance.new("ScrollingFrame")
     listFrame.Name = "List"
-    listFrame.AnchorPoint = Vector2.new(1, 0)
-    listFrame.Position = UDim2.new(1, -4, 1, 4)
-    listFrame.Size = UDim2.new(0, 140, 0, 0)
     listFrame.BackgroundColor3 = theme.BackgroundAlt
     listFrame.BorderSizePixel = 0
+    listFrame.Size = UDim2.new(0, 140, 0, 0)
     listFrame.Visible = false
     listFrame.ClipsDescendants = true
-    listFrame.ZIndex = 10
+    listFrame.ZIndex = 50
     listFrame.ScrollBarThickness = 4
     listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     listFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
-    listFrame.Parent = item
+    if HubX._popupLayer then
+        listFrame.Parent = HubX._popupLayer
+    else
+        listFrame.Parent = item
+    end
 
     local listCorner = Instance.new("UICorner")
     listCorner.CornerRadius = UDim.new(0, 6)
@@ -1110,8 +1126,28 @@ function TabMethods:CreateDropdown(opts)
         if opened then return end
         opened = true
         listFrame.Visible = true
+
+        if HubX._gui then
+            local absPos = main.AbsolutePosition
+            local absSize = main.AbsoluteSize
+            local guiSize = HubX._gui.AbsoluteSize
+
+            local contentSize = listLayout.AbsoluteContentSize.Y + 8
+            local targetHeight = math.min(contentSize, MAX_HEIGHT)
+
+            local x = absPos.X
+            local y = absPos.Y + absSize.Y + 4
+
+            if y + targetHeight > guiSize.Y then
+                y = absPos.Y - targetHeight - 4
+            end
+
+            listFrame.Position = UDim2.fromOffset(x, y)
+        end
+
         local contentSize = listLayout.AbsoluteContentSize.Y + 8
         local targetHeight = math.min(contentSize, MAX_HEIGHT)
+
         TweenService:Create(listFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 140, 0, targetHeight)
         }):Play()
@@ -1148,7 +1184,7 @@ function TabMethods:CreateDropdown(opts)
             btn.BackgroundColor3 = theme.Element
             btn.AutoButtonColor = false
             btn.Text = ""
-            btn.ZIndex = 11
+            btn.ZIndex = 51
             btn.Parent = listFrame
 
             local btnCorner = Instance.new("UICorner")
@@ -1163,7 +1199,7 @@ function TabMethods:CreateDropdown(opts)
             lbl.TextSize = 13
             lbl.TextColor3 = theme.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left
-            lbl.ZIndex = 12
+            lbl.ZIndex = 52
             lbl.Parent = btn
 
             local pad = Instance.new("UIPadding")
@@ -1225,6 +1261,8 @@ function TabMethods:CreateColorPicker(opts)
     local default = opts.Default or Color3.fromRGB(0, 153, 255)
     local callback = opts.Callback or function() end
     local theme = HubX.Theme
+
+    createGui()
 
     local item = createElementBase(self, 46)
 
@@ -1297,9 +1335,14 @@ function TabMethods:CreateColorPicker(opts)
     palette.Name = "Palette"
     palette.BackgroundColor3 = theme.BackgroundAlt
     palette.BorderSizePixel = 0
-    palette.Size = UDim2.new(0, 180, 0, 26)
+    palette.Size = UDim2.new(0, 180, 0, 0)
     palette.Visible = false
-    palette.Parent = item
+    palette.ZIndex = 50
+    if HubX._popupLayer then
+        palette.Parent = HubX._popupLayer
+    else
+        palette.Parent = item
+    end
 
     local paletteCorner = Instance.new("UICorner")
     paletteCorner.CornerRadius = UDim.new(0, 6)
@@ -1356,6 +1399,23 @@ function TabMethods:CreateColorPicker(opts)
         if opened then return end
         opened = true
         palette.Visible = true
+
+        if HubX._gui then
+            local absPos = button.AbsolutePosition
+            local absSize = button.AbsoluteSize
+            local guiSize = HubX._gui.AbsoluteSize
+
+            local height = 26
+            local x = absPos.X
+            local y = absPos.Y + absSize.Y + 4
+
+            if y + height > guiSize.Y then
+                y = absPos.Y - height - 4
+            end
+
+            palette.Position = UDim2.fromOffset(x, y)
+        end
+
         TweenService:Create(palette, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 180, 0, 26)
         }):Play()
