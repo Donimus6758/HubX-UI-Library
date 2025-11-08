@@ -184,14 +184,9 @@ function HubX:CreateWindow(config)
         local vp = camera.ViewportSize
         local w = math.clamp(vp.X * 0.6, 360, 900)
         local h = math.clamp(vp.Y * 0.6, 260, 560)
-        if minimized then
-            main.Size = UDim2.fromOffset(w, 40)
-        else
-            main.Size = UDim2.fromOffset(w, h)
-        end
+        main.Size = UDim2.fromOffset(w, h)
         main.Position = UDim2.new(0.5, 0, 0.5, 0)
     end
-
 
     updateMainSize()
     addConnection(camera:GetPropertyChangedSignal("ViewportSize"), updateMainSize)
@@ -347,14 +342,15 @@ function HubX:CreateWindow(config)
         if minimized then
             bottom.Visible = false
             tween(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.fromOffset(main.AbsoluteSize.X, 40)
+                Size = UDim2.new(main.Size.X.Scale, main.Size.X.Offset, 0, 40)
             })
         else
             bottom.Visible = true
-            updateMainSize()
+            tween(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(main.Size.X.Scale, main.Size.X.Offset, 1, -40)
+            })
         end
     end)
-
 
     local function hideWindow()
         hidden = true
