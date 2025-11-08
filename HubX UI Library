@@ -721,13 +721,13 @@ function TabMethods:CreateSlider(opts)
     if default < min then default = min end
     if default > max then default = max end
 
-    local item = createElementBase(self, 52)
+    local item = createElementBase(self, 56)
 
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
     label.Position = UDim2.new(0, 0, 0, 0)
-    label.Size = UDim2.new(1, -40, 0, 22)
+    label.Size = UDim2.new(1, -60, 0, 24)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
@@ -740,7 +740,7 @@ function TabMethods:CreateSlider(opts)
     valueLabel.BackgroundTransparency = 1
     valueLabel.AnchorPoint = Vector2.new(1, 0)
     valueLabel.Position = UDim2.new(1, 0, 0, 0)
-    valueLabel.Size = UDim2.new(0, 40, 0, 22)
+    valueLabel.Size = UDim2.new(0, 46, 0, 24)
     valueLabel.Font = Enum.Font.Gotham
     valueLabel.Text = tostring(default)
     valueLabel.TextSize = 13
@@ -748,41 +748,72 @@ function TabMethods:CreateSlider(opts)
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
     valueLabel.Parent = item
 
+    local trackHolder = Instance.new("Frame")
+    trackHolder.Name = "TrackHolder"
+    trackHolder.Position = UDim2.new(0, 0, 0, 30)
+    trackHolder.Size = UDim2.new(1, 0, 0, 16)
+    trackHolder.BackgroundTransparency = 1
+    trackHolder.Parent = item
+
     local track = Instance.new("Frame")
     track.Name = "Track"
-    track.Position = UDim2.new(0, 0, 0, 26)
-    track.Size = UDim2.new(1, 0, 0, 10)
+    track.AnchorPoint = Vector2.new(0.5, 0.5)
+    track.Position = UDim2.new(0.5, 0, 0.5, 0)
+    track.Size = UDim2.new(1, -8, 0, 6)
     track.BackgroundColor3 = theme.SliderTrack
     track.BorderSizePixel = 0
-    track.Parent = item
+    track.Parent = trackHolder
 
     local trackCorner = Instance.new("UICorner")
-    trackCorner.CornerRadius = UDim.new(0, 6)
+    trackCorner.CornerRadius = UDim.new(0, 999)
     trackCorner.Parent = track
+
+    local trackStroke = Instance.new("UIStroke")
+    trackStroke.Color = theme.ElementOutline
+    trackStroke.Thickness = 1
+    trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    trackStroke.Parent = track
 
     local fill = Instance.new("Frame")
     fill.Name = "Fill"
-    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.AnchorPoint = Vector2.new(0, 0.5)
+    fill.Position = UDim2.new(0, 0, 0.5, 0)
+    fill.Size = UDim2.new(0, 0, 1.4, 0)
     fill.BackgroundColor3 = theme.SliderFill
     fill.BorderSizePixel = 0
     fill.Parent = track
 
     local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(0, 6)
+    fillCorner.CornerRadius = UDim.new(0, 999)
     fillCorner.Parent = fill
 
     local knob = Instance.new("Frame")
     knob.Name = "Knob"
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
     knob.Size = UDim2.new(0, 14, 0, 14)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BackgroundColor3 = Color3.fromRGB(245, 245, 255)
     knob.Parent = track
 
     local knobCorner = Instance.new("UICorner")
     knobCorner.CornerRadius = UDim.new(1, 0)
     knobCorner.Parent = knob
 
+    local knobStroke = Instance.new("UIStroke")
+    knobStroke.Color = theme.Accent
+    knobStroke.Thickness = 1
+    knobStroke.Parent = knob
+
+    local hitbox = Instance.new("TextButton")
+    hitbox.Name = "Hitbox"
+    hitbox.BackgroundTransparency = 1
+    hitbox.Text = ""
+    hitbox.AutoButtonColor = false
+    hitbox.Size = UDim2.new(1, 0, 1, 10)
+    hitbox.Position = UDim2.new(0, 0, 0, -5)
+    hitbox.Parent = trackHolder
+
     local currentValue = default
+    local dragging = false
 
     local function setValueFromPercent(p, fireCallback)
         p = math.clamp(p, 0, 1)
@@ -792,7 +823,7 @@ function TabMethods:CreateSlider(opts)
         valueLabel.Text = tostring(val)
 
         TweenService:Create(fill, TweenInfo.new(0.08, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-            Size = UDim2.new(p, 0, 1, 0)
+            Size = UDim2.new(p, 0, 1.4, 0)
         }):Play()
         knob.Position = UDim2.new(p, 0, 0.5, 0)
 
@@ -804,27 +835,54 @@ function TabMethods:CreateSlider(opts)
     end
 
     local function updateFromInput(input, fireCallback)
+        if not track or track.AbsoluteSize.X == 0 then
+            return
+        end
         local relX = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
         setValueFromPercent(relX, fireCallback)
     end
 
-    local dragging = false
+    local function setDragging(state)
+        dragging = state
+        local targetColor = state and theme.Accent or theme.SliderTrack
+        TweenService:Create(track, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = targetColor
+        }):Play()
+    end
 
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            updateFromInput(input, true)
+    local function beginDrag(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
         end
-    end)
+        setDragging(true)
+        updateFromInput(input, true)
+    end
 
-    track.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
+    local function endDrag(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
         end
-    end)
+        if dragging then
+            setDragging(false)
+        end
+    end
+
+    hitbox.InputBegan:Connect(beginDrag)
+    track.InputBegan:Connect(beginDrag)
+    knob.InputBegan:Connect(beginDrag)
+
+    hitbox.InputEnded:Connect(endDrag)
+    track.InputEnded:Connect(endDrag)
+    knob.InputEnded:Connect(endDrag)
 
     UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if not dragging then
+            return
+        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
             updateFromInput(input, true)
         end
     end)
@@ -945,6 +1003,7 @@ function TabMethods:CreateDropdown(opts)
     main.Size = UDim2.new(0, 140, 0, 26)
     main.BackgroundColor3 = theme.BackgroundAlt
     main.BorderSizePixel = 0
+    main.ZIndex = 3
     main.Parent = item
 
     local mainCorner = Instance.new("UICorner")
@@ -966,6 +1025,7 @@ function TabMethods:CreateDropdown(opts)
     currentLabel.TextSize = 13
     currentLabel.TextColor3 = theme.Text
     currentLabel.TextXAlignment = Enum.TextXAlignment.Left
+    currentLabel.ZIndex = 4
     currentLabel.Parent = main
 
     local arrow = Instance.new("TextLabel")
@@ -979,6 +1039,7 @@ function TabMethods:CreateDropdown(opts)
     arrow.TextSize = 12
     arrow.TextColor3 = theme.SubText
     arrow.TextXAlignment = Enum.TextXAlignment.Center
+    arrow.ZIndex = 4
     arrow.Parent = main
 
     local button = Instance.new("TextButton")
@@ -986,15 +1047,22 @@ function TabMethods:CreateDropdown(opts)
     button.BackgroundTransparency = 1
     button.Size = UDim2.new(1, 0, 1, 0)
     button.Text = ""
+    button.ZIndex = 5
     button.Parent = main
 
-    local listFrame = Instance.new("Frame")
+    local listFrame = Instance.new("ScrollingFrame")
     listFrame.Name = "List"
+    listFrame.AnchorPoint = Vector2.new(1, 0)
+    listFrame.Position = UDim2.new(1, -4, 1, 4)
+    listFrame.Size = UDim2.new(0, 140, 0, 0)
     listFrame.BackgroundColor3 = theme.BackgroundAlt
     listFrame.BorderSizePixel = 0
-    listFrame.Size = UDim2.new(0, 140, 0, 0)
-    listFrame.ClipsDescendants = true
     listFrame.Visible = false
+    listFrame.ClipsDescendants = true
+    listFrame.ZIndex = 10
+    listFrame.ScrollBarThickness = 4
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    listFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
     listFrame.Parent = item
 
     local listCorner = Instance.new("UICorner")
@@ -1018,6 +1086,13 @@ function TabMethods:CreateDropdown(opts)
     listPadding.PaddingRight = UDim.new(0, 4)
     listPadding.Parent = listFrame
 
+    local MAX_HEIGHT = 130
+
+    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        local contentSize = listLayout.AbsoluteContentSize.Y + 8
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, contentSize)
+    end)
+
     local opened = false
     local selected = default
 
@@ -1036,8 +1111,9 @@ function TabMethods:CreateDropdown(opts)
         opened = true
         listFrame.Visible = true
         local contentSize = listLayout.AbsoluteContentSize.Y + 8
+        local targetHeight = math.min(contentSize, MAX_HEIGHT)
         TweenService:Create(listFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 140, 0, contentSize)
+            Size = UDim2.new(0, 140, 0, targetHeight)
         }):Play()
         TweenService:Create(arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Rotation = 180
@@ -1072,6 +1148,7 @@ function TabMethods:CreateDropdown(opts)
             btn.BackgroundColor3 = theme.Element
             btn.AutoButtonColor = false
             btn.Text = ""
+            btn.ZIndex = 11
             btn.Parent = listFrame
 
             local btnCorner = Instance.new("UICorner")
@@ -1086,6 +1163,7 @@ function TabMethods:CreateDropdown(opts)
             lbl.TextSize = 13
             lbl.TextColor3 = theme.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.ZIndex = 12
             lbl.Parent = btn
 
             local pad = Instance.new("UIPadding")
