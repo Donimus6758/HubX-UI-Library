@@ -145,7 +145,7 @@ function HubX:CreateWindow(config)
     openButton.Parent = screenGui
 
     local openCorner = Instance.new("UICorner")
-    openCorner.CornerRadius = UDim.new(1, 0)
+    openCorner.CornerRadius = UDim.new(0, 8)
     openCorner.Parent = openButton
 
     local openStroke = Instance.new("UIStroke")
@@ -293,6 +293,7 @@ function HubX:CreateWindow(config)
     tabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     tabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabListLayout.Parent = tabList
+    addConnection(tabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), updateTabCanvas)
 
     local contentHolder = Instance.new("Frame")
     contentHolder.Name = "ContentHolder"
@@ -327,18 +328,13 @@ function HubX:CreateWindow(config)
     notifLayout.Parent = notifHolder
 
     makeDraggable(main, topBar)
+    makeDraggable(openButton)
 
     local minimized = false
     local hidden = false
 
     local function updateTabCanvas()
-        local total = 0
-        for _, child in ipairs(tabList:GetChildren()) do
-            if child:IsA("Frame") then
-                total = total + child.AbsoluteSize.Y + 6
-            end
-        end
-        tabList.CanvasSize = UDim2.new(0, 0, 0, total + 10)
+        tabList.CanvasSize = UDim2.new(0, 0, 0, tabListLayout.AbsoluteContentSize.Y + 10)
     end
 
     addConnection(minimizeBtn.MouseButton1Click, function()
@@ -390,7 +386,8 @@ function HubX:CreateWindow(config)
         Accent = accent,
         _contentHolder = contentHolder,
         _tabList = tabList,
-        _notifHolder = notifHolder
+        _notifHolder = notifHolder,
+        _screenGui = screenGui
     }
 
     function window:SetAccent(color)
@@ -538,16 +535,10 @@ function HubX:CreateWindow(config)
         pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
         local function updatePageCanvas()
-            local total = 0
-            for _, ch in ipairs(page:GetChildren()) do
-                if ch:IsA("Frame") or ch:IsA("TextLabel") then
-                    total = total + ch.AbsoluteSize.Y + 8
-                end
-            end
-            page.CanvasSize = UDim2.new(0, 0, 0, total + 10)
+            page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 10)
         end
 
-        addConnection(pageLayout.Changed, updatePageCanvas)
+        addConnection(pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), updatePageCanvas)
         task.defer(updatePageCanvas)
 
         local tab = {
@@ -1069,11 +1060,15 @@ function HubX:CreateWindow(config)
                 listFrame = Instance.new("Frame")
                 listFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
                 listFrame.BorderSizePixel = 0
-                listFrame.Size = UDim2.new(1, 0, 0, 0)
-                listFrame.Position = UDim2.new(0, 0, 1, 2)
+
+                local cardPos = card.AbsolutePosition
+                local cardSize = card.AbsoluteSize
+                listFrame.Size = UDim2.fromOffset(cardSize.X, 0)
+                listFrame.Position = UDim2.fromOffset(cardPos.X, cardPos.Y + cardSize.Y + 2)
+
                 listFrame.ClipsDescendants = true
-                listFrame.ZIndex = card.ZIndex + 10
-                listFrame.Parent = card
+                listFrame.ZIndex = 50
+                listFrame.Parent = window._screenGui
 
                 local corner2 = Instance.new("UICorner")
                 corner2.CornerRadius = UDim.new(0, 8)
@@ -1092,7 +1087,7 @@ function HubX:CreateWindow(config)
                 scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
                 scroll.ScrollBarThickness = 3
                 scroll.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
-                scroll.ZIndex = listFrame.ZIndex + 1
+                scroll.ZIndex = 51
                 scroll.Parent = listFrame
 
                 local lay = Instance.new("UIListLayout")
@@ -1110,7 +1105,7 @@ function HubX:CreateWindow(config)
                     optBtn.Text = "  " .. tostring(opt)
                     optBtn.TextSize = 14
                     optBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
-                    optBtn.ZIndex = scroll.ZIndex + 1
+                    optBtn.ZIndex = 52
                     optBtn.Parent = scroll
 
                     local optCorner = Instance.new("UICorner")
@@ -1130,7 +1125,7 @@ function HubX:CreateWindow(config)
                 scroll.CanvasSize = UDim2.new(0, 0, 0, totalH + 4)
                 local maxH = math.min(totalH + 4, 120)
                 tween(listFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Size = UDim2.new(1, 0, 0, maxH)
+                    Size = UDim2.fromOffset(cardSize.X, maxH)
                 })
             end
 
