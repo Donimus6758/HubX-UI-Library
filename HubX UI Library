@@ -1,6 +1,5 @@
--- HubX UI Library (mobile + PC friendly)
+-- HubX UI Library (PC / Mobile / Tablet friendly, fixed sliders & dropdown)
 -- Dark theme: black / grey / white + blue accent
--- Author: HubX
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -133,7 +132,7 @@ function HubX:CreateWindow(config)
     screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
     table.insert(self._guis, screenGui)
 
-    -- Кнопка открытия (когда окно скрыто крестиком) — для мобилок тоже
+    -- Floating open button (for when window is hidden)
     local openButton = Instance.new("ImageButton")
     openButton.Name = "HubX_OpenButton"
     openButton.AnchorPoint = Vector2.new(0, 1)
@@ -155,12 +154,12 @@ function HubX:CreateWindow(config)
     openStroke.Parent = openButton
     makeClickRipple(openButton)
 
-    -- Главное окно
+    -- Main window
     local main = Instance.new("Frame")
     main.Name = "MainFrame"
     main.AnchorPoint = Vector2.new(0.5, 0.5)
     main.Position = UDim2.new(0.5, 0, 0.5, 0)
-    main.Size = UDim2.fromOffset(720, 420) -- дальше будет адаптация
+    main.Size = UDim2.fromOffset(720, 420)
     main.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
     main.BorderSizePixel = 0
     main.Parent = screenGui
@@ -174,7 +173,7 @@ function HubX:CreateWindow(config)
     mainStroke.Color = Color3.fromRGB(40, 40, 50)
     mainStroke.Parent = main
 
-    -- Адаптация под размер экрана
+    -- Adaptive size (PC / mobile / tablet)
     local camera
     while not camera do
         camera = Workspace.CurrentCamera
@@ -192,7 +191,7 @@ function HubX:CreateWindow(config)
     updateMainSize()
     addConnection(camera:GetPropertyChangedSignal("ViewportSize"), updateMainSize)
 
-    -- ВЕРХНЯЯ ПАНЕЛЬ
+    -- Top bar
     local topBar = Instance.new("Frame")
     topBar.Name = "TopBar"
     topBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
@@ -252,7 +251,7 @@ function HubX:CreateWindow(config)
     minimizeBtn.Parent = topBar
     makeClickRipple(minimizeBtn)
 
-    -- НИЖНЯЯ ОБЛАСТЬ
+    -- Bottom area
     local bottom = Instance.new("Frame")
     bottom.Name = "Bottom"
     bottom.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
@@ -345,7 +344,6 @@ function HubX:CreateWindow(config)
     addConnection(minimizeBtn.MouseButton1Click, function()
         minimized = not minimized
         if minimized then
-            -- Сворачиваем только контент (нижнюю часть)
             tween(bottom, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Size = UDim2.new(1, 0, 0, 0)
             })
@@ -582,9 +580,15 @@ function HubX:CreateWindow(config)
             tab:Show()
         end
 
+        local function safeUpdateCanvas()
+            task.defer(updatePageCanvas)
+        end
+
         updateTabCanvas()
 
-        -- ELEMENTS --
+        ----------------------------------------------------------------
+        -- ELEMENTS
+        ----------------------------------------------------------------
 
         function tab:CreateText(args)
             args = args or {}
@@ -605,7 +609,7 @@ function HubX:CreateWindow(config)
             lbl.TextColor3 = color
             lbl.Parent = page
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return lbl
         end
 
@@ -643,7 +647,7 @@ function HubX:CreateWindow(config)
             lbl.TextColor3 = color
             lbl.Parent = card
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return card
         end
 
@@ -682,7 +686,7 @@ function HubX:CreateWindow(config)
                 cb()
             end)
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return card
         end
 
@@ -775,10 +779,11 @@ function HubX:CreateWindow(config)
                 cb(state)
             end
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return toggleApi
         end
 
+        -- FIXED SLIDER
         function tab:CreateSlider(args)
             args = args or {}
             local txt = args.Text or "Slider"
@@ -854,6 +859,7 @@ function HubX:CreateWindow(config)
             dragBtn.Parent = bar
 
             local dragging = false
+            local dragInput
 
             local function setValueFromPercent(p)
                 p = math.clamp(p, 0, 1)
@@ -863,27 +869,38 @@ function HubX:CreateWindow(config)
                 cb(val)
             end
 
-            local function updateFromInput(x)
+            local function updateFromInputPosition(pos)
                 local absPos = bar.AbsolutePosition.X
                 local sizeX = bar.AbsoluteSize.X
-                local rel = (x - absPos) / sizeX
+                local rel = (pos - absPos) / sizeX
                 setValueFromPercent(rel)
             end
 
-            addConnection(dragBtn.MouseButton1Down, function()
-                dragging = true
-                updateFromInput(UserInputService:GetMouseLocation().X)
-            end)
-
-            addConnection(UserInputService.InputEnded, function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    dragging = false
+            addConnection(dragBtn.InputBegan, function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragInput = input
+                    updateFromInputPosition(input.Position.X)
+                    addConnection(input.Changed, function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                            dragInput = nil
+                        end
+                    end)
                 end
             end)
 
-            addConnection(RunService.RenderStepped, function()
-                if dragging then
-                    updateFromInput(UserInputService:GetMouseLocation().X)
+            addConnection(dragBtn.InputChanged, function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch then
+                    dragInput = input
+                end
+            end)
+
+            addConnection(UserInputService.InputChanged, function(input)
+                if input == dragInput and dragging then
+                    updateFromInputPosition(input.Position.X)
                 end
             end)
 
@@ -897,7 +914,7 @@ function HubX:CreateWindow(config)
                 setValueFromPercent(p)
             end
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return api
         end
 
@@ -957,10 +974,11 @@ function HubX:CreateWindow(config)
                 cb(box.Text, enterPressed)
             end)
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return box
         end
 
+        -- DROPDOWN (fixed for touch)
         function tab:CreateDropdown(args)
             args = args or {}
             local txt = args.Text or "Dropdown"
@@ -1028,13 +1046,12 @@ function HubX:CreateWindow(config)
 
             local function closeList()
                 if listFrame then
-                    tween(listFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    local lf = listFrame
+                    listFrame = nil
+                    tween(lf, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
                         Size = UDim2.new(1, 0, 0, 0)
                     }).Completed:Connect(function()
-                        if listFrame then
-                            listFrame:Destroy()
-                            listFrame = nil
-                        end
+                        lf:Destroy()
                     end)
                 end
                 expanded = false
@@ -1055,16 +1072,17 @@ function HubX:CreateWindow(config)
                 listFrame.Size = UDim2.new(1, 0, 0, 0)
                 listFrame.Position = UDim2.new(0, 0, 1, 2)
                 listFrame.ClipsDescendants = true
+                listFrame.ZIndex = card.ZIndex + 10
                 listFrame.Parent = card
 
-                local corner = Instance.new("UICorner")
-                corner.CornerRadius = UDim.new(0, 8)
-                corner.Parent = listFrame
+                local corner2 = Instance.new("UICorner")
+                corner2.CornerRadius = UDim.new(0, 8)
+                corner2.Parent = listFrame
 
-                local stroke = Instance.new("UIStroke")
-                stroke.Thickness = 1
-                stroke.Color = Color3.fromRGB(40, 40, 50)
-                stroke.Parent = listFrame
+                local stroke2 = Instance.new("UIStroke")
+                stroke2.Thickness = 1
+                stroke2.Color = Color3.fromRGB(40, 40, 50)
+                stroke2.Parent = listFrame
 
                 local scroll = Instance.new("ScrollingFrame")
                 scroll.BackgroundTransparency = 1
@@ -1074,6 +1092,7 @@ function HubX:CreateWindow(config)
                 scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
                 scroll.ScrollBarThickness = 3
                 scroll.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
+                scroll.ZIndex = listFrame.ZIndex + 1
                 scroll.Parent = listFrame
 
                 local lay = Instance.new("UIListLayout")
@@ -1091,11 +1110,12 @@ function HubX:CreateWindow(config)
                     optBtn.Text = "  " .. tostring(opt)
                     optBtn.TextSize = 14
                     optBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
+                    optBtn.ZIndex = scroll.ZIndex + 1
                     optBtn.Parent = scroll
 
-                    local corner2 = Instance.new("UICorner")
-                    corner2.CornerRadius = UDim.new(0, 6)
-                    corner2.Parent = optBtn
+                    local optCorner = Instance.new("UICorner")
+                    optCorner.CornerRadius = UDim.new(0, 6)
+                    optCorner.Parent = optBtn
 
                     makeClickRipple(optBtn)
                     addConnection(optBtn.MouseButton1Click, function()
@@ -1135,7 +1155,7 @@ function HubX:CreateWindow(config)
                 end
             end
 
-            updatePageCanvas()
+            safeUpdateCanvas()
             return api
         end
 
@@ -1179,7 +1199,7 @@ function HubX:CreateWindow(config)
             imgLabel.ScaleType = Enum.ScaleType.Fit
             imgLabel.Parent = card
 
-            updatePageCanvas()
+            safeUpdateCanvas()
 
             local api = {}
             function api:SetImage(i)
@@ -1187,12 +1207,12 @@ function HubX:CreateWindow(config)
             end
             function api:SetHeight(height)
                 card.Size = UDim2.new(1, -4, 0, height)
-                updatePageCanvas()
+                safeUpdateCanvas()
             end
             return api
         end
 
-        -- KEYBIND (как в Apoto, но под HubX)
+        -- KEYBIND
         function tab:CreateKeybind(args)
             args = args or {}
             local txt = args.Text or "Keybind"
@@ -1235,7 +1255,6 @@ function HubX:CreateWindow(config)
             keyButton.Font = Enum.Font.Gotham
             keyButton.TextSize = 14
             keyButton.TextColor3 = Color3.fromRGB(193, 193, 193)
-            keyButton.Text = "[ " .. UserInputService:GetStringForKeyCode(def) .. " ]"
             keyButton.Parent = card
 
             local kbCorner = Instance.new("UICorner")
@@ -1246,6 +1265,14 @@ function HubX:CreateWindow(config)
             kbStroke.Thickness = 1
             kbStroke.Color = Color3.fromRGB(40, 40, 50)
             kbStroke.Parent = keyButton
+
+            local function keyName(k)
+                local s = UserInputService:GetStringForKeyCode(k)
+                if s == nil or s == "" then s = tostring(k) end
+                return s
+            end
+
+            keyButton.Text = "[ " .. keyName(def) .. " ]"
 
             local awaiting = false
             local currentKey = def
@@ -1262,11 +1289,7 @@ function HubX:CreateWindow(config)
                     awaiting = false
                     if input.KeyCode ~= Enum.KeyCode.Unknown then
                         currentKey = input.KeyCode
-                        local name = UserInputService:GetStringForKeyCode(currentKey)
-                        if name == "" then
-                            name = tostring(currentKey)
-                        end
-                        keyButton.Text = "[ " .. name .. " ]"
+                        keyButton.Text = "[ " .. keyName(currentKey) .. " ]"
                     else
                         keyButton.Text = "[ None ]"
                     end
@@ -1290,19 +1313,17 @@ function HubX:CreateWindow(config)
                 end)
             end
 
-            updatePageCanvas()
+            safeUpdateCanvas()
 
             local api = {}
             function api:SetKey(keyCode)
                 currentKey = keyCode
-                local name = UserInputService:GetStringForKeyCode(currentKey)
-                if name == "" then name = tostring(currentKey) end
-                keyButton.Text = "[ " .. name .. " ]"
+                keyButton.Text = "[ " .. keyName(currentKey) .. " ]"
             end
             return api
         end
 
-        -- COLOR PICKER (простая RGB-палитра)
+        -- COLOR PICKER
         function tab:CreateColorPicker(args)
             args = args or {}
             local txt = args.Text or "Color Picker"
@@ -1410,36 +1431,48 @@ function HubX:CreateWindow(config)
                 dragBtn.Parent = bar
 
                 local dragging = false
+                local dragInput
 
-                local function setFromX(x)
+                local function setFromX(pos)
                     local absPos = bar.AbsolutePosition.X
                     local sizeX = bar.AbsoluteSize.X
-                    local rel = math.clamp((x - absPos) / sizeX, 0, 1)
+                    local rel = math.clamp((pos - absPos) / sizeX, 0, 1)
                     values[i] = math.floor(rel * 255 + 0.5)
                     fill.Size = UDim2.new(rel, 0, 1, 0)
                     applyColor()
                 end
 
-                addConnection(dragBtn.MouseButton1Down, function()
-                    dragging = true
-                    setFromX(UserInputService:GetMouseLocation().X)
-                end)
-
-                addConnection(UserInputService.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        dragging = false
+                addConnection(dragBtn.InputBegan, function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = true
+                        dragInput = input
+                        setFromX(input.Position.X)
+                        addConnection(input.Changed, function()
+                            if input.UserInputState == Enum.UserInputState.End then
+                                dragging = false
+                                dragInput = nil
+                            end
+                        end)
                     end
                 end)
 
-                addConnection(RunService.RenderStepped, function()
-                    if dragging then
-                        setFromX(UserInputService:GetMouseLocation().X)
+                addConnection(dragBtn.InputChanged, function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseMovement
+                    or input.UserInputType == Enum.UserInputType.Touch then
+                        dragInput = input
+                    end
+                end)
+
+                addConnection(UserInputService.InputChanged, function(input)
+                    if input == dragInput and dragging then
+                        setFromX(input.Position.X)
                     end
                 end)
             end
 
             applyColor()
-            updatePageCanvas()
+            safeUpdateCanvas()
 
             local api = {}
             function api:Set(color)
@@ -1451,7 +1484,7 @@ function HubX:CreateWindow(config)
             return api
         end
 
-        -- VIDEO (как в Apoto)
+        -- VIDEO
         function tab:CreateVideo(args)
             args = args or {}
             local videoId = args.Video or "rbxassetid://0"
@@ -1569,7 +1602,7 @@ function HubX:CreateWindow(config)
                 refreshLoop()
             end)
 
-            updatePageCanvas()
+            safeUpdateCanvas()
 
             local api = {}
             function api:Set(id)
@@ -1594,7 +1627,7 @@ function HubX:CreateWindow(config)
             end
             function api:SetSize(size)
                 card.Size = size
-                updatePageCanvas()
+                safeUpdateCanvas()
             end
             function api:SetLoop(v)
                 loop = v and true or false
