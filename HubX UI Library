@@ -184,9 +184,14 @@ function HubX:CreateWindow(config)
         local vp = camera.ViewportSize
         local w = math.clamp(vp.X * 0.6, 360, 900)
         local h = math.clamp(vp.Y * 0.6, 260, 560)
-        main.Size = UDim2.fromOffset(w, h)
+        if minimized then
+            main.Size = UDim2.fromOffset(w, 40)
+        else
+            main.Size = UDim2.fromOffset(w, h)
+        end
         main.Position = UDim2.new(0.5, 0, 0.5, 0)
     end
+
 
     updateMainSize()
     addConnection(camera:GetPropertyChangedSignal("ViewportSize"), updateMainSize)
@@ -340,15 +345,16 @@ function HubX:CreateWindow(config)
     addConnection(minimizeBtn.MouseButton1Click, function()
         minimized = not minimized
         if minimized then
-            tween(bottom, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(1, 0, 0, 0)
+            bottom.Visible = false
+            tween(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.fromOffset(main.AbsoluteSize.X, 40)
             })
         else
-            tween(bottom, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(1, 0, 1, -40)
-            })
+            bottom.Visible = true
+            updateMainSize()
         end
     end)
+
 
     local function hideWindow()
         hidden = true
@@ -1060,15 +1066,11 @@ function HubX:CreateWindow(config)
                 listFrame = Instance.new("Frame")
                 listFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
                 listFrame.BorderSizePixel = 0
-
-                local cardPos = card.AbsolutePosition
-                local cardSize = card.AbsoluteSize
-                listFrame.Size = UDim2.fromOffset(cardSize.X, 0)
-                listFrame.Position = UDim2.fromOffset(cardPos.X, cardPos.Y + cardSize.Y + 2)
-
+                listFrame.Size = UDim2.new(1, 0, 0, 0)
+                listFrame.Position = UDim2.new(0, 0, 1, 2)
                 listFrame.ClipsDescendants = true
                 listFrame.ZIndex = 50
-                listFrame.Parent = window._screenGui
+                listFrame.Parent = card
 
                 local corner2 = Instance.new("UICorner")
                 corner2.CornerRadius = UDim.new(0, 8)
@@ -1125,9 +1127,10 @@ function HubX:CreateWindow(config)
                 scroll.CanvasSize = UDim2.new(0, 0, 0, totalH + 4)
                 local maxH = math.min(totalH + 4, 120)
                 tween(listFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Size = UDim2.fromOffset(cardSize.X, maxH)
+                    Size = UDim2.new(1, 0, 0, maxH)
                 })
             end
+end
 
             addConnection(btn.MouseButton1Click, function()
                 if expanded then
