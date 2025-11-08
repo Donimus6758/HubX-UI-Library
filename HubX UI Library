@@ -1,1 +1,1613 @@
-5
+-- HubX UI Library (mobile + PC friendly)
+-- Dark theme: black / grey / white + blue accent
+-- Author: HubX
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer
+
+local HubX = {
+    _connections = {},
+    _guis = {}
+}
+
+local function addConnection(signal, fn)
+    local conn = signal:Connect(fn)
+    table.insert(HubX._connections, conn)
+    return conn
+end
+
+local function tween(o, info, props)
+    local t = TweenService:Create(o, info, props)
+    t:Play()
+    return t
+end
+
+local defaultAccent = Color3.fromRGB(47, 109, 246)
+
+local function makeClickRipple(button)
+    if not button:IsA("GuiButton") then return end
+    addConnection(button.MouseButton1Click, function()
+        local absPos = button.AbsolutePosition
+        local absSize = button.AbsoluteSize
+        local mousePos = UserInputService:GetMouseLocation()
+        local relX = mousePos.X - absPos.X
+        local relY = mousePos.Y - absPos.Y
+
+        local circle = Instance.new("Frame")
+        circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        circle.BackgroundTransparency = 0.2
+        circle.BorderSizePixel = 0
+        circle.AnchorPoint = Vector2.new(0.5, 0.5)
+        circle.Position = UDim2.fromOffset(relX, relY)
+        circle.Size = UDim2.fromOffset(0, 0)
+        circle.ZIndex = button.ZIndex + 1
+        circle.ClipsDescendants = true
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = circle
+
+        circle.Parent = button
+
+        local maxSize = math.max(absSize.X, absSize.Y) * 2
+        local tw = tween(circle, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromOffset(maxSize, maxSize)
+        })
+        tw.Completed:Connect(function()
+            circle:Destroy()
+        end)
+    end)
+end
+
+local function makeDraggable(frame, dragHandle)
+    dragHandle = dragHandle or frame
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    addConnection(dragHandle.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+
+            addConnection(input.Changed, function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    addConnection(dragHandle.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    addConnection(UserInputService.InputChanged, function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+function HubX:DestroyAll()
+    for _, gui in ipairs(self._guis) do
+        pcall(function() gui:Destroy() end)
+    end
+    for _, c in ipairs(self._connections) do
+        pcall(function() c:Disconnect() end)
+    end
+    self._guis = {}
+    self._connections = {}
+end
+
+function HubX:CreateWindow(config)
+    config = config or {}
+    local name = config.Name or "HubX Window"
+    local accent = config.Accent or defaultAccent
+    local icon = config.Icon or "rbxassetid://7733774079"
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "HubX_UI"
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+    table.insert(self._guis, screenGui)
+
+    -- Кнопка открытия (когда окно скрыто крестиком) — для мобилок тоже
+    local openButton = Instance.new("ImageButton")
+    openButton.Name = "HubX_OpenButton"
+    openButton.AnchorPoint = Vector2.new(0, 1)
+    openButton.Position = UDim2.new(0, 10, 1, -10)
+    openButton.Size = UDim2.fromOffset(48, 48)
+    openButton.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+    openButton.AutoButtonColor = false
+    openButton.Image = icon
+    openButton.Visible = false
+    openButton.Parent = screenGui
+
+    local openCorner = Instance.new("UICorner")
+    openCorner.CornerRadius = UDim.new(1, 0)
+    openCorner.Parent = openButton
+
+    local openStroke = Instance.new("UIStroke")
+    openStroke.Thickness = 1
+    openStroke.Color = accent
+    openStroke.Parent = openButton
+    makeClickRipple(openButton)
+
+    -- Главное окно
+    local main = Instance.new("Frame")
+    main.Name = "MainFrame"
+    main.AnchorPoint = Vector2.new(0.5, 0.5)
+    main.Position = UDim2.new(0.5, 0, 0.5, 0)
+    main.Size = UDim2.fromOffset(720, 420) -- дальше будет адаптация
+    main.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+    main.BorderSizePixel = 0
+    main.Parent = screenGui
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 8)
+    mainCorner.Parent = main
+
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Thickness = 1.5
+    mainStroke.Color = Color3.fromRGB(40, 40, 50)
+    mainStroke.Parent = main
+
+    -- Адаптация под размер экрана
+    local camera
+    while not camera do
+        camera = Workspace.CurrentCamera
+        if not camera then task.wait(0.05) end
+    end
+
+    local function updateMainSize()
+        local vp = camera.ViewportSize
+        local w = math.clamp(vp.X * 0.6, 360, 900)
+        local h = math.clamp(vp.Y * 0.6, 260, 560)
+        main.Size = UDim2.fromOffset(w, h)
+        main.Position = UDim2.new(0.5, 0, 0.5, 0)
+    end
+
+    updateMainSize()
+    addConnection(camera:GetPropertyChangedSignal("ViewportSize"), updateMainSize)
+
+    -- ВЕРХНЯЯ ПАНЕЛЬ
+    local topBar = Instance.new("Frame")
+    topBar.Name = "TopBar"
+    topBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    topBar.BorderSizePixel = 0
+    topBar.Size = UDim2.new(1, 0, 0, 40)
+    topBar.Parent = main
+
+    local topCorner = Instance.new("UICorner")
+    topCorner.CornerRadius = UDim.new(0, 8)
+    topCorner.Parent = topBar
+
+    local titleIcon = Instance.new("ImageLabel")
+    titleIcon.BackgroundTransparency = 1
+    titleIcon.Size = UDim2.fromOffset(28, 28)
+    titleIcon.Position = UDim2.new(0, 10, 0, 6)
+    titleIcon.Image = icon
+    titleIcon.Parent = topBar
+
+    local title = Instance.new("TextLabel")
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.new(0, 48, 0, 0)
+    title.Size = UDim2.new(1, -140, 1, 0)
+    title.Font = Enum.Font.GothamBold
+    title.Text = name
+    title.TextSize = 18
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextColor3 = Color3.fromRGB(230, 230, 235)
+    title.Parent = topBar
+
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, accent),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 230, 235))
+    })
+    titleGradient.Rotation = 180
+    titleGradient.Parent = title
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Size = UDim2.fromOffset(26, 26)
+    closeBtn.Position = UDim2.new(1, -32, 0.5, -13)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.Text = "✕"
+    closeBtn.TextSize = 18
+    closeBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+    closeBtn.Parent = topBar
+    makeClickRipple(closeBtn)
+
+    local minimizeBtn = Instance.new("TextButton")
+    minimizeBtn.BackgroundTransparency = 1
+    minimizeBtn.Size = UDim2.fromOffset(26, 26)
+    minimizeBtn.Position = UDim2.new(1, -64, 0.5, -13)
+    minimizeBtn.Font = Enum.Font.GothamBold
+    minimizeBtn.Text = "–"
+    minimizeBtn.TextSize = 20
+    minimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+    minimizeBtn.Parent = topBar
+    makeClickRipple(minimizeBtn)
+
+    -- НИЖНЯЯ ОБЛАСТЬ
+    local bottom = Instance.new("Frame")
+    bottom.Name = "Bottom"
+    bottom.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+    bottom.BorderSizePixel = 0
+    bottom.Position = UDim2.new(0, 0, 0, 40)
+    bottom.Size = UDim2.new(1, 0, 1, -40)
+    bottom.ClipsDescendants = true
+    bottom.Parent = main
+
+    local sidebar = Instance.new("Frame")
+    sidebar.Name = "Sidebar"
+    sidebar.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+    sidebar.BorderSizePixel = 0
+    sidebar.Size = UDim2.new(0, 200, 1, 0)
+    sidebar.Parent = bottom
+
+    local sidebarStroke = Instance.new("UIStroke")
+    sidebarStroke.Color = Color3.fromRGB(40, 40, 50)
+    sidebarStroke.Thickness = 1
+    sidebarStroke.Parent = sidebar
+
+    local sidebarCorner = Instance.new("UICorner")
+    sidebarCorner.CornerRadius = UDim.new(0, 8)
+    sidebarCorner.Parent = sidebar
+
+    local tabList = Instance.new("ScrollingFrame")
+    tabList.Name = "TabList"
+    tabList.BackgroundTransparency = 1
+    tabList.BorderSizePixel = 0
+    tabList.Position = UDim2.new(0, 0, 0, 10)
+    tabList.Size = UDim2.new(1, 0, 1, -10)
+    tabList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    tabList.ScrollBarThickness = 3
+    tabList.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
+    tabList.Parent = sidebar
+
+    local tabListLayout = Instance.new("UIListLayout")
+    tabListLayout.Padding = UDim.new(0, 6)
+    tabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    tabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    tabListLayout.Parent = tabList
+
+    local contentHolder = Instance.new("Frame")
+    contentHolder.Name = "ContentHolder"
+    contentHolder.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    contentHolder.BorderSizePixel = 0
+    contentHolder.Position = UDim2.new(0, 210, 0, 10)
+    contentHolder.Size = UDim2.new(1, -220, 1, -20)
+    contentHolder.Parent = bottom
+
+    local contentCorner = Instance.new("UICorner")
+    contentCorner.CornerRadius = UDim.new(0, 8)
+    contentCorner.Parent = contentHolder
+
+    local contentStroke = Instance.new("UIStroke")
+    contentStroke.Thickness = 1
+    contentStroke.Color = Color3.fromRGB(40, 40, 50)
+    contentStroke.Parent = contentHolder
+
+    local notifHolder = Instance.new("Frame")
+    notifHolder.Name = "NotificationHolder"
+    notifHolder.AnchorPoint = Vector2.new(1, 0)
+    notifHolder.Position = UDim2.new(1, -10, 0, 10)
+    notifHolder.Size = UDim2.new(0, 260, 1, -20)
+    notifHolder.BackgroundTransparency = 1
+    notifHolder.Parent = screenGui
+
+    local notifLayout = Instance.new("UIListLayout")
+    notifLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    notifLayout.Padding = UDim.new(0, 8)
+    notifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    notifLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    notifLayout.Parent = notifHolder
+
+    makeDraggable(main, topBar)
+
+    local minimized = false
+    local hidden = false
+
+    local function updateTabCanvas()
+        local total = 0
+        for _, child in ipairs(tabList:GetChildren()) do
+            if child:IsA("Frame") then
+                total = total + child.AbsoluteSize.Y + 6
+            end
+        end
+        tabList.CanvasSize = UDim2.new(0, 0, 0, total + 10)
+    end
+
+    addConnection(minimizeBtn.MouseButton1Click, function()
+        minimized = not minimized
+        if minimized then
+            -- Сворачиваем только контент (нижнюю часть)
+            tween(bottom, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(1, 0, 0, 0)
+            })
+        else
+            tween(bottom, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(1, 0, 1, -40)
+            })
+        end
+    end)
+
+    local function hideWindow()
+        hidden = true
+        main.Visible = false
+        openButton.Visible = true
+    end
+
+    local function showWindow()
+        hidden = false
+        main.Visible = true
+        openButton.Visible = false
+    end
+
+    addConnection(closeBtn.MouseButton1Click, function()
+        hideWindow()
+    end)
+
+    addConnection(openButton.MouseButton1Click, function()
+        showWindow()
+    end)
+
+    addConnection(UserInputService.InputBegan, function(input, gp)
+        if gp then return end
+        if input.KeyCode == Enum.KeyCode.RightShift then
+            if hidden then
+                showWindow()
+            else
+                hideWindow()
+            end
+        end
+    end)
+
+    local window = {
+        _tabs = {},
+        Accent = accent,
+        _contentHolder = contentHolder,
+        _tabList = tabList,
+        _notifHolder = notifHolder
+    }
+
+    function window:SetAccent(color)
+        self.Accent = color
+        accent = color
+        titleGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, accent),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 230, 235))
+        })
+        openStroke.Color = accent
+    end
+
+    function window:CreateNotification(args)
+        args = args or {}
+        local nTitle = args.Title or "Notification"
+        local nText = args.Description or "HubX notification"
+        local duration = args.Duration or 3
+
+        local card = Instance.new("Frame")
+        card.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        card.BorderSizePixel = 0
+        card.Size = UDim2.new(1, 0, 0, 0)
+        card.ClipsDescendants = true
+        card.Parent = notifHolder
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 8)
+        corner.Parent = card
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1.5
+        stroke.Color = accent
+        stroke.Parent = card
+
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Position = UDim2.new(0, 10, 0, 4)
+        titleLabel.Size = UDim2.new(1, -20, 0, 20)
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.Text = nTitle
+        titleLabel.TextSize = 16
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        titleLabel.TextColor3 = Color3.fromRGB(230, 230, 235)
+        titleLabel.Parent = card
+
+        local bodyLabel = Instance.new("TextLabel")
+        bodyLabel.BackgroundTransparency = 1
+        bodyLabel.Position = UDim2.new(0, 10, 0, 24)
+        bodyLabel.Size = UDim2.new(1, -20, 0, 40)
+        bodyLabel.Font = Enum.Font.Gotham
+        bodyLabel.Text = nText
+        bodyLabel.TextSize = 14
+        bodyLabel.TextWrapped = true
+        bodyLabel.TextXAlignment = Enum.TextXAlignment.Left
+        bodyLabel.TextYAlignment = Enum.TextYAlignment.Top
+        bodyLabel.TextColor3 = Color3.fromRGB(190, 190, 200)
+        bodyLabel.Parent = card
+
+        local progress = Instance.new("Frame")
+        progress.BackgroundColor3 = accent
+        progress.BorderSizePixel = 0
+        progress.AnchorPoint = Vector2.new(0, 1)
+        progress.Position = UDim2.new(0, 0, 1, 0)
+        progress.Size = UDim2.new(1, 0, 0, 2)
+        progress.Parent = card
+
+        tween(card, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1, 0, 0, 70)
+        })
+
+        tween(progress, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 0, 0, 2)
+        })
+
+        task.spawn(function()
+            task.wait(duration)
+            tween(card, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(1, 0, 0, 0)
+            }).Completed:Connect(function()
+                card:Destroy()
+            end)
+        end)
+    end
+
+    function window:CreateTab(cfg)
+        cfg = cfg or {}
+        local tabName = cfg.Name or "Tab"
+        local tabIcon = cfg.Icon or "rbxassetid://7733774079"
+
+        local tabButton = Instance.new("Frame")
+        tabButton.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        tabButton.BorderSizePixel = 0
+        tabButton.Size = UDim2.new(1, -16, 0, 32)
+        tabButton.Parent = tabList
+
+        local tabCorner = Instance.new("UICorner")
+        tabCorner.CornerRadius = UDim.new(0, 6)
+        tabCorner.Parent = tabButton
+
+        local tabStroke = Instance.new("UIStroke")
+        tabStroke.Thickness = 1
+        tabStroke.Color = Color3.fromRGB(40, 40, 50)
+        tabStroke.Parent = tabButton
+
+        local iconImg = Instance.new("ImageLabel")
+        iconImg.BackgroundTransparency = 1
+        iconImg.Size = UDim2.fromOffset(20, 20)
+        iconImg.Position = UDim2.new(0, 8, 0.5, -10)
+        iconImg.Image = tabIcon
+        iconImg.Parent = tabButton
+
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Position = UDim2.new(0, 32, 0, 0)
+        nameLabel.Size = UDim2.new(1, -40, 1, 0)
+        nameLabel.Font = Enum.Font.Gotham
+        nameLabel.Text = tabName
+        nameLabel.TextSize = 14
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        nameLabel.TextColor3 = Color3.fromRGB(210, 210, 220)
+        nameLabel.Parent = tabButton
+
+        local clickBtn = Instance.new("TextButton")
+        clickBtn.BackgroundTransparency = 1
+        clickBtn.Text = ""
+        clickBtn.Size = UDim2.new(1, 0, 1, 0)
+        clickBtn.Parent = tabButton
+        makeClickRipple(clickBtn)
+
+        local page = Instance.new("ScrollingFrame")
+        page.Name = "Page_" .. tabName
+        page.BackgroundTransparency = 1
+        page.BorderSizePixel = 0
+        page.Size = UDim2.new(1, -16, 1, -16)
+        page.Position = UDim2.new(0, 8, 0, 8)
+        page.CanvasSize = UDim2.new(0, 0, 0, 0)
+        page.ScrollBarThickness = 4
+        page.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
+        page.Visible = false
+        page.Parent = contentHolder
+
+        local pageLayout = Instance.new("UIListLayout")
+        pageLayout.Parent = page
+        pageLayout.Padding = UDim.new(0, 8)
+        pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        local function updatePageCanvas()
+            local total = 0
+            for _, ch in ipairs(page:GetChildren()) do
+                if ch:IsA("Frame") or ch:IsA("TextLabel") then
+                    total = total + ch.AbsoluteSize.Y + 8
+                end
+            end
+            page.CanvasSize = UDim2.new(0, 0, 0, total + 10)
+        end
+
+        addConnection(pageLayout.Changed, updatePageCanvas)
+        task.defer(updatePageCanvas)
+
+        local tab = {
+            Name = tabName,
+            _page = page,
+            _window = window
+        }
+
+        function tab:Show()
+            for _, t in ipairs(window._tabs) do
+                t._page.Visible = false
+            end
+            for _, child in ipairs(tabList:GetChildren()) do
+                if child:IsA("Frame") then
+                    child.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+                    child:FindFirstChildOfClass("UIStroke").Color = Color3.fromRGB(40, 40, 50)
+                end
+            end
+            page.Visible = true
+            tabButton.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+            tabStroke.Color = accent
+        end
+
+        addConnection(clickBtn.MouseButton1Click, function()
+            tab:Show()
+        end)
+
+        table.insert(window._tabs, tab)
+        if #window._tabs == 1 then
+            tab:Show()
+        end
+
+        updateTabCanvas()
+
+        -- ELEMENTS --
+
+        function tab:CreateText(args)
+            args = args or {}
+            local txt = args.Text or "Text"
+            local size = args.TextSize or 16
+            local color = args.TextColor or Color3.fromRGB(200, 200, 210)
+
+            local lbl = Instance.new("TextLabel")
+            lbl.BackgroundTransparency = 1
+            lbl.Size = UDim2.new(1, -4, 0, 0)
+            lbl.AutomaticSize = Enum.AutomaticSize.Y
+            lbl.Font = Enum.Font.Gotham
+            lbl.Text = txt
+            lbl.TextSize = size
+            lbl.TextWrapped = true
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.TextYAlignment = Enum.TextYAlignment.Top
+            lbl.TextColor3 = color
+            lbl.Parent = page
+
+            updatePageCanvas()
+            return lbl
+        end
+
+        function tab:CreateLabel(args)
+            args = args or {}
+            local txt = args.Text or "Label"
+            local size = args.TextSize or 16
+            local color = args.TextColor or Color3.fromRGB(200, 200, 210)
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 48)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local lbl = Instance.new("TextLabel")
+            lbl.BackgroundTransparency = 1
+            lbl.Position = UDim2.new(0, 10, 0, 0)
+            lbl.Size = UDim2.new(1, -20, 1, 0)
+            lbl.Font = Enum.Font.Gotham
+            lbl.Text = txt
+            lbl.TextSize = size
+            lbl.TextWrapped = true
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.TextYAlignment = Enum.TextYAlignment.Center
+            lbl.TextColor3 = color
+            lbl.Parent = card
+
+            updatePageCanvas()
+            return card
+        end
+
+        function tab:CreateButton(args)
+            args = args or {}
+            local txt = args.Text or "Button"
+            local cb = args.Callback or function() end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 40)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local btn = Instance.new("TextButton")
+            btn.BackgroundTransparency = 1
+            btn.Size = UDim2.new(1, 0, 1, 0)
+            btn.Font = Enum.Font.Gotham
+            btn.Text = "  " .. txt
+            btn.TextSize = 16
+            btn.TextColor3 = Color3.fromRGB(210, 210, 220)
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            btn.Parent = card
+
+            makeClickRipple(btn)
+            addConnection(btn.MouseButton1Click, function()
+                cb()
+            end)
+
+            updatePageCanvas()
+            return card
+        end
+
+        function tab:CreateToggle(args)
+            args = args or {}
+            local txt = args.Text or "Toggle"
+            local def = args.Default or false
+            local cb = args.Callback or function() end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 40)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(1, -60, 1, 0)
+            label.Font = Enum.Font.Gotham
+            label.Text = txt
+            label.TextSize = 16
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = card
+
+            local toggleBtn = Instance.new("TextButton")
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+            toggleBtn.BorderSizePixel = 0
+            toggleBtn.AnchorPoint = Vector2.new(1, 0.5)
+            toggleBtn.Position = UDim2.new(1, -10, 0.5, 0)
+            toggleBtn.Size = UDim2.fromOffset(36, 20)
+            toggleBtn.Text = ""
+            toggleBtn.Parent = card
+
+            local tbCorner = Instance.new("UICorner")
+            tbCorner.CornerRadius = UDim.new(1, 0)
+            tbCorner.Parent = toggleBtn
+
+            local knob = Instance.new("Frame")
+            knob.BackgroundColor3 = Color3.fromRGB(200, 200, 210)
+            knob.BorderSizePixel = 0
+            knob.Size = UDim2.fromOffset(16, 16)
+            knob.Position = UDim2.new(0, 2, 0.5, -8)
+            knob.Parent = toggleBtn
+
+            local knobCorner = Instance.new("UICorner")
+            knobCorner.CornerRadius = UDim.new(1, 0)
+            knobCorner.Parent = knob
+
+            local state = def
+
+            local function refresh()
+                if state then
+                    toggleBtn.BackgroundColor3 = accent
+                    tween(knob, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Position = UDim2.new(1, -18, 0.5, -8)
+                    })
+                else
+                    toggleBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+                    tween(knob, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Position = UDim2.new(0, 2, 0.5, -8)
+                    })
+                end
+            end
+
+            refresh()
+            cb(state)
+
+            makeClickRipple(toggleBtn)
+            addConnection(toggleBtn.MouseButton1Click, function()
+                state = not state
+                refresh()
+                cb(state)
+            end)
+
+            local toggleApi = {}
+            function toggleApi:Set(val)
+                state = val and true or false
+                refresh()
+                cb(state)
+            end
+
+            updatePageCanvas()
+            return toggleApi
+        end
+
+        function tab:CreateSlider(args)
+            args = args or {}
+            local txt = args.Text or "Slider"
+            local min = args.Minimum or 0
+            local max = args.Maximum or 100
+            local def = args.Default or min
+            local cb = args.Callback or function() end
+
+            if max == min then max = min + 1 end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 60)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(1, -20, 0, 22)
+            label.Font = Enum.Font.Gotham
+            label.Text = txt
+            label.TextSize = 16
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = card
+
+            local valueLabel = Instance.new("TextLabel")
+            valueLabel.BackgroundTransparency = 1
+            valueLabel.Position = UDim2.new(1, -80, 0, 0)
+            valueLabel.Size = UDim2.new(0, 70, 0, 22)
+            valueLabel.Font = Enum.Font.Gotham
+            valueLabel.Text = tostring(def)
+            valueLabel.TextSize = 14
+            valueLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
+            valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+            valueLabel.Parent = card
+
+            local bar = Instance.new("Frame")
+            bar.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+            bar.BorderSizePixel = 0
+            bar.Position = UDim2.new(0, 10, 0, 32)
+            bar.Size = UDim2.new(1, -20, 0, 16)
+            bar.Parent = card
+
+            local barCorner = Instance.new("UICorner")
+            barCorner.CornerRadius = UDim.new(0, 8)
+            barCorner.Parent = bar
+
+            local fill = Instance.new("Frame")
+            fill.BackgroundColor3 = accent
+            fill.BorderSizePixel = 0
+            fill.Size = UDim2.new(0, 0, 1, 0)
+            fill.Parent = bar
+
+            local fillCorner = Instance.new("UICorner")
+            fillCorner.CornerRadius = UDim.new(0, 8)
+            fillCorner.Parent = fill
+
+            local dragBtn = Instance.new("TextButton")
+            dragBtn.BackgroundTransparency = 1
+            dragBtn.Size = UDim2.new(1, 0, 1, 0)
+            dragBtn.Text = ""
+            dragBtn.Parent = bar
+
+            local dragging = false
+
+            local function setValueFromPercent(p)
+                p = math.clamp(p, 0, 1)
+                local val = math.floor(min + (max - min) * p + 0.5)
+                fill.Size = UDim2.new(p, 0, 1, 0)
+                valueLabel.Text = tostring(val)
+                cb(val)
+            end
+
+            local function updateFromInput(x)
+                local absPos = bar.AbsolutePosition.X
+                local sizeX = bar.AbsoluteSize.X
+                local rel = (x - absPos) / sizeX
+                setValueFromPercent(rel)
+            end
+
+            addConnection(dragBtn.MouseButton1Down, function()
+                dragging = true
+                updateFromInput(UserInputService:GetMouseLocation().X)
+            end)
+
+            addConnection(UserInputService.InputEnded, function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                end
+            end)
+
+            addConnection(RunService.RenderStepped, function()
+                if dragging then
+                    updateFromInput(UserInputService:GetMouseLocation().X)
+                end
+            end)
+
+            local defaultPercent = (def - min) / (max - min)
+            setValueFromPercent(defaultPercent)
+
+            local api = {}
+            function api:Set(val)
+                val = math.clamp(val, min, max)
+                local p = (val - min) / (max - min)
+                setValueFromPercent(p)
+            end
+
+            updatePageCanvas()
+            return api
+        end
+
+        function tab:CreateTextbox(args)
+            args = args or {}
+            local txt = args.Text or "Textbox"
+            local placeholder = args.Placeholder or "Enter text..."
+            local def = args.Default or ""
+            local cb = args.Callback or function() end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 56)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(1, -20, 0, 20)
+            label.Font = Enum.Font.Gotham
+            label.Text = txt
+            label.TextSize = 16
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = card
+
+            local box = Instance.new("TextBox")
+            box.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+            box.BorderSizePixel = 0
+            box.Position = UDim2.new(0, 10, 0, 26)
+            box.Size = UDim2.new(1, -20, 0, 24)
+            box.Font = Enum.Font.Gotham
+            box.Text = def
+            box.PlaceholderText = placeholder
+            box.PlaceholderColor3 = Color3.fromRGB(110, 110, 120)
+            box.TextSize = 14
+            box.TextColor3 = Color3.fromRGB(210, 210, 220)
+            box.TextXAlignment = Enum.TextXAlignment.Left
+            box.ClearTextOnFocus = false
+            box.Parent = card
+
+            local boxCorner = Instance.new("UICorner")
+            boxCorner.CornerRadius = UDim.new(0, 6)
+            boxCorner.Parent = box
+
+            addConnection(box.FocusLost, function(enterPressed)
+                cb(box.Text, enterPressed)
+            end)
+
+            updatePageCanvas()
+            return box
+        end
+
+        function tab:CreateDropdown(args)
+            args = args or {}
+            local txt = args.Text or "Dropdown"
+            local options = args.Options or {}
+            local def = args.Default
+            local cb = args.Callback or function() end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 40)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(0.5, -10, 1, 0)
+            label.Font = Enum.Font.Gotham
+            label.Text = txt
+            label.TextSize = 16
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = card
+
+            local valueLabel = Instance.new("TextLabel")
+            valueLabel.BackgroundTransparency = 1
+            valueLabel.Position = UDim2.new(0.5, 0, 0, 0)
+            valueLabel.Size = UDim2.new(0.5, -30, 1, 0)
+            valueLabel.Font = Enum.Font.Gotham
+            valueLabel.Text = def or "None"
+            valueLabel.TextSize = 14
+            valueLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
+            valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+            valueLabel.Parent = card
+
+            local arrow = Instance.new("TextLabel")
+            arrow.BackgroundTransparency = 1
+            arrow.AnchorPoint = Vector2.new(1, 0.5)
+            arrow.Position = UDim2.new(1, -10, 0.5, 0)
+            arrow.Size = UDim2.fromOffset(16, 16)
+            arrow.Font = Enum.Font.GothamBold
+            arrow.Text = "▼"
+            arrow.TextSize = 14
+            arrow.TextColor3 = Color3.fromRGB(150, 150, 160)
+            arrow.Parent = card
+
+            local btn = Instance.new("TextButton")
+            btn.BackgroundTransparency = 1
+            btn.Size = UDim2.new(1, 0, 1, 0)
+            btn.Text = ""
+            btn.Parent = card
+            makeClickRipple(btn)
+
+            local expanded = false
+            local listFrame
+
+            local function closeList()
+                if listFrame then
+                    tween(listFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                        Size = UDim2.new(1, 0, 0, 0)
+                    }).Completed:Connect(function()
+                        if listFrame then
+                            listFrame:Destroy()
+                            listFrame = nil
+                        end
+                    end)
+                end
+                expanded = false
+                arrow.Text = "▼"
+            end
+
+            local function openList()
+                if expanded then
+                    closeList()
+                    return
+                end
+                expanded = true
+                arrow.Text = "▲"
+
+                listFrame = Instance.new("Frame")
+                listFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+                listFrame.BorderSizePixel = 0
+                listFrame.Size = UDim2.new(1, 0, 0, 0)
+                listFrame.Position = UDim2.new(0, 0, 1, 2)
+                listFrame.ClipsDescendants = true
+                listFrame.Parent = card
+
+                local corner = Instance.new("UICorner")
+                corner.CornerRadius = UDim.new(0, 8)
+                corner.Parent = listFrame
+
+                local stroke = Instance.new("UIStroke")
+                stroke.Thickness = 1
+                stroke.Color = Color3.fromRGB(40, 40, 50)
+                stroke.Parent = listFrame
+
+                local scroll = Instance.new("ScrollingFrame")
+                scroll.BackgroundTransparency = 1
+                scroll.BorderSizePixel = 0
+                scroll.Size = UDim2.new(1, 0, 1, -4)
+                scroll.Position = UDim2.new(0, 0, 0, 2)
+                scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+                scroll.ScrollBarThickness = 3
+                scroll.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
+                scroll.Parent = listFrame
+
+                local lay = Instance.new("UIListLayout")
+                lay.Parent = scroll
+                lay.Padding = UDim.new(0, 2)
+                lay.SortOrder = Enum.SortOrder.LayoutOrder
+
+                local totalH = 0
+                for _, opt in ipairs(options) do
+                    local optBtn = Instance.new("TextButton")
+                    optBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+                    optBtn.BorderSizePixel = 0
+                    optBtn.Size = UDim2.new(1, -4, 0, 24)
+                    optBtn.Font = Enum.Font.Gotham
+                    optBtn.Text = "  " .. tostring(opt)
+                    optBtn.TextSize = 14
+                    optBtn.TextColor3 = Color3.fromRGB(210, 210, 220)
+                    optBtn.Parent = scroll
+
+                    local corner2 = Instance.new("UICorner")
+                    corner2.CornerRadius = UDim.new(0, 6)
+                    corner2.Parent = optBtn
+
+                    makeClickRipple(optBtn)
+                    addConnection(optBtn.MouseButton1Click, function()
+                        valueLabel.Text = tostring(opt)
+                        cb(opt)
+                        closeList()
+                    end)
+
+                    totalH = totalH + 24 + 2
+                end
+
+                scroll.CanvasSize = UDim2.new(0, 0, 0, totalH + 4)
+                local maxH = math.min(totalH + 4, 120)
+                tween(listFrame, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(1, 0, 0, maxH)
+                })
+            end
+
+            addConnection(btn.MouseButton1Click, function()
+                if expanded then
+                    closeList()
+                else
+                    openList()
+                end
+            end)
+
+            local api = {}
+            function api:Set(val)
+                valueLabel.Text = tostring(val)
+                cb(val)
+            end
+            function api:SetOptions(opts)
+                options = opts
+                if expanded then
+                    closeList()
+                    openList()
+                end
+            end
+
+            updatePageCanvas()
+            return api
+        end
+
+        function tab:CreatePlayerSelector(args)
+            args = args or {}
+            args.Text = args.Text or "Player"
+            local players = Players:GetPlayers()
+            local names = {}
+            for _, pl in ipairs(players) do
+                table.insert(names, pl.Name)
+            end
+            args.Options = names
+            return self:CreateDropdown(args)
+        end
+
+        function tab:CreateImage(args)
+            args = args or {}
+            local img = args.Image or "rbxassetid://0"
+            local h = args.Height or 150
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, h)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local imgLabel = Instance.new("ImageLabel")
+            imgLabel.BackgroundTransparency = 1
+            imgLabel.Size = UDim2.new(1, -16, 1, -16)
+            imgLabel.Position = UDim2.new(0, 8, 0, 8)
+            imgLabel.Image = img
+            imgLabel.ScaleType = Enum.ScaleType.Fit
+            imgLabel.Parent = card
+
+            updatePageCanvas()
+
+            local api = {}
+            function api:SetImage(i)
+                imgLabel.Image = i
+            end
+            function api:SetHeight(height)
+                card.Size = UDim2.new(1, -4, 0, height)
+                updatePageCanvas()
+            end
+            return api
+        end
+
+        -- KEYBIND (как в Apoto, но под HubX)
+        function tab:CreateKeybind(args)
+            args = args or {}
+            local txt = args.Text or "Keybind"
+            local def = args.Default or Enum.KeyCode.F
+            local hold = args.Hold or false
+            local cb = args.Callback or function() end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 40)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(0.5, -10, 1, 0)
+            label.Font = Enum.Font.Gotham
+            label.Text = txt
+            label.TextSize = 16
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = card
+
+            local keyButton = Instance.new("TextButton")
+            keyButton.AnchorPoint = Vector2.new(1, 0.5)
+            keyButton.Position = UDim2.new(1, -10, 0.5, 0)
+            keyButton.Size = UDim2.new(0, 130, 0, 26)
+            keyButton.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+            keyButton.AutoButtonColor = false
+            keyButton.Font = Enum.Font.Gotham
+            keyButton.TextSize = 14
+            keyButton.TextColor3 = Color3.fromRGB(193, 193, 193)
+            keyButton.Text = "[ " .. UserInputService:GetStringForKeyCode(def) .. " ]"
+            keyButton.Parent = card
+
+            local kbCorner = Instance.new("UICorner")
+            kbCorner.CornerRadius = UDim.new(0, 6)
+            kbCorner.Parent = keyButton
+
+            local kbStroke = Instance.new("UIStroke")
+            kbStroke.Thickness = 1
+            kbStroke.Color = Color3.fromRGB(40, 40, 50)
+            kbStroke.Parent = keyButton
+
+            local awaiting = false
+            local currentKey = def
+
+            makeClickRipple(keyButton)
+            addConnection(keyButton.MouseButton1Click, function()
+                awaiting = true
+                keyButton.Text = "[ Press key... ]"
+            end)
+
+            addConnection(UserInputService.InputBegan, function(input, gp)
+                if gp then return end
+                if awaiting then
+                    awaiting = false
+                    if input.KeyCode ~= Enum.KeyCode.Unknown then
+                        currentKey = input.KeyCode
+                        local name = UserInputService:GetStringForKeyCode(currentKey)
+                        if name == "" then
+                            name = tostring(currentKey)
+                        end
+                        keyButton.Text = "[ " .. name .. " ]"
+                    else
+                        keyButton.Text = "[ None ]"
+                    end
+                else
+                    if input.KeyCode == currentKey then
+                        if hold then
+                            cb(true)
+                        else
+                            cb()
+                        end
+                    end
+                end
+            end)
+
+            if hold then
+                addConnection(UserInputService.InputEnded, function(input, gp)
+                    if gp then return end
+                    if input.KeyCode == currentKey then
+                        cb(false)
+                    end
+                end)
+            end
+
+            updatePageCanvas()
+
+            local api = {}
+            function api:SetKey(keyCode)
+                currentKey = keyCode
+                local name = UserInputService:GetStringForKeyCode(currentKey)
+                if name == "" then name = tostring(currentKey) end
+                keyButton.Text = "[ " .. name .. " ]"
+            end
+            return api
+        end
+
+        -- COLOR PICKER (простая RGB-палитра)
+        function tab:CreateColorPicker(args)
+            args = args or {}
+            local txt = args.Text or "Color Picker"
+            local def = args.Default or Color3.new(1, 1, 1)
+            local cb = args.Callback or function() end
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, 100)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 10, 0, 0)
+            label.Size = UDim2.new(1, -60, 0, 20)
+            label.Font = Enum.Font.Gotham
+            label.Text = txt
+            label.TextSize = 16
+            label.TextColor3 = Color3.fromRGB(210, 210, 220)
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = card
+
+            local preview = Instance.new("Frame")
+            preview.AnchorPoint = Vector2.new(1, 0)
+            preview.Position = UDim2.new(1, -10, 0, 6)
+            preview.Size = UDim2.fromOffset(32, 32)
+            preview.BackgroundColor3 = def
+            preview.BorderSizePixel = 0
+            preview.Parent = card
+
+            local prevCorner = Instance.new("UICorner")
+            prevCorner.CornerRadius = UDim.new(0, 6)
+            prevCorner.Parent = preview
+
+            local channels = {"R","G","B"}
+            local values = {
+                math.floor(def.R * 255 + 0.5),
+                math.floor(def.G * 255 + 0.5),
+                math.floor(def.B * 255 + 0.5)
+            }
+
+            local function applyColor()
+                local c = Color3.fromRGB(values[1], values[2], values[3])
+                preview.BackgroundColor3 = c
+                cb(c)
+            end
+
+            local yStart = 30
+            for i, ch in ipairs(channels) do
+                local y = yStart + (i - 1) * 20
+
+                local chLabel = Instance.new("TextLabel")
+                chLabel.BackgroundTransparency = 1
+                chLabel.Position = UDim2.new(0, 10, 0, y)
+                chLabel.Size = UDim2.new(0, 16, 0, 16)
+                chLabel.Font = Enum.Font.Gotham
+                chLabel.Text = ch
+                chLabel.TextSize = 14
+                chLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
+                chLabel.TextXAlignment = Enum.TextXAlignment.Left
+                chLabel.Parent = card
+
+                local bar = Instance.new("Frame")
+                bar.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+                bar.BorderSizePixel = 0
+                bar.Position = UDim2.new(0, 30, 0, y)
+                bar.Size = UDim2.new(1, -70, 0, 14)
+                bar.Parent = card
+
+                local barCorner = Instance.new("UICorner")
+                barCorner.CornerRadius = UDim.new(0, 7)
+                barCorner.Parent = bar
+
+                local fill = Instance.new("Frame")
+                fill.BorderSizePixel = 0
+                fill.Size = UDim2.new(values[i]/255, 0, 1, 0)
+                fill.Parent = bar
+
+                if ch == "R" then
+                    fill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+                elseif ch == "G" then
+                    fill.BackgroundColor3 = Color3.fromRGB(80, 255, 80)
+                else
+                    fill.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+                end
+
+                local fillCorner = Instance.new("UICorner")
+                fillCorner.CornerRadius = UDim.new(0, 7)
+                fillCorner.Parent = fill
+
+                local dragBtn = Instance.new("TextButton")
+                dragBtn.BackgroundTransparency = 1
+                dragBtn.Size = UDim2.new(1, 0, 1, 0)
+                dragBtn.Text = ""
+                dragBtn.Parent = bar
+
+                local dragging = false
+
+                local function setFromX(x)
+                    local absPos = bar.AbsolutePosition.X
+                    local sizeX = bar.AbsoluteSize.X
+                    local rel = math.clamp((x - absPos) / sizeX, 0, 1)
+                    values[i] = math.floor(rel * 255 + 0.5)
+                    fill.Size = UDim2.new(rel, 0, 1, 0)
+                    applyColor()
+                end
+
+                addConnection(dragBtn.MouseButton1Down, function()
+                    dragging = true
+                    setFromX(UserInputService:GetMouseLocation().X)
+                end)
+
+                addConnection(UserInputService.InputEnded, function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = false
+                    end
+                end)
+
+                addConnection(RunService.RenderStepped, function()
+                    if dragging then
+                        setFromX(UserInputService:GetMouseLocation().X)
+                    end
+                end)
+            end
+
+            applyColor()
+            updatePageCanvas()
+
+            local api = {}
+            function api:Set(color)
+                values[1] = math.floor(color.R * 255 + 0.5)
+                values[2] = math.floor(color.G * 255 + 0.5)
+                values[3] = math.floor(color.B * 255 + 0.5)
+                applyColor()
+            end
+            return api
+        end
+
+        -- VIDEO (как в Apoto)
+        function tab:CreateVideo(args)
+            args = args or {}
+            local videoId = args.Video or "rbxassetid://0"
+            local loop = args.Loop or false
+            local height = args.Height or 200
+
+            local card = Instance.new("Frame")
+            card.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+            card.BorderSizePixel = 0
+            card.Size = UDim2.new(1, -4, 0, height)
+            card.Parent = page
+
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = card
+
+            local stroke = Instance.new("UIStroke")
+            stroke.Thickness = 1
+            stroke.Color = Color3.fromRGB(40, 40, 50)
+            stroke.Parent = card
+
+            local videoFrame = Instance.new("VideoFrame")
+            videoFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            videoFrame.BorderSizePixel = 0
+            videoFrame.Size = UDim2.new(1, -16, 1, -48)
+            videoFrame.Position = UDim2.new(0, 8, 0, 8)
+            videoFrame.Video = videoId
+            videoFrame.Looped = loop
+            videoFrame.Parent = card
+
+            local vCorner = Instance.new("UICorner")
+            vCorner.CornerRadius = UDim.new(0, 6)
+            vCorner.Parent = videoFrame
+
+            local controls = Instance.new("Frame")
+            controls.BackgroundTransparency = 1
+            controls.Size = UDim2.new(1, -16, 0, 32)
+            controls.Position = UDim2.new(0, 8, 1, -36)
+            controls.Parent = card
+
+            local playPause = Instance.new("TextButton")
+            playPause.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+            playPause.Size = UDim2.new(0, 40, 1, 0)
+            playPause.Text = "▶"
+            playPause.Font = Enum.Font.GothamBold
+            playPause.TextSize = 18
+            playPause.TextColor3 = Color3.fromRGB(220, 220, 230)
+            playPause.Parent = controls
+
+            local ppCorner = Instance.new("UICorner")
+            ppCorner.CornerRadius = UDim.new(0, 6)
+            ppCorner.Parent = playPause
+
+            local stopBtn = Instance.new("TextButton")
+            stopBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+            stopBtn.Size = UDim2.new(0, 40, 1, 0)
+            stopBtn.Position = UDim2.new(0, 44, 0, 0)
+            stopBtn.Text = "■"
+            stopBtn.Font = Enum.Font.GothamBold
+            stopBtn.TextSize = 18
+            stopBtn.TextColor3 = Color3.fromRGB(220, 220, 230)
+            stopBtn.Parent = controls
+
+            local stopCorner = Instance.new("UICorner")
+            stopCorner.CornerRadius = UDim.new(0, 6)
+            stopCorner.Parent = stopBtn
+
+            local loopBtn = Instance.new("TextButton")
+            loopBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+            loopBtn.Size = UDim2.new(0, 70, 1, 0)
+            loopBtn.Position = UDim2.new(1, -74, 0, 0)
+            loopBtn.Text = loop and "Loop: ON" or "Loop: OFF"
+            loopBtn.Font = Enum.Font.Gotham
+            loopBtn.TextSize = 14
+            loopBtn.TextColor3 = loop and accent or Color3.fromRGB(170, 170, 180)
+            loopBtn.Parent = controls
+
+            local loopCorner = Instance.new("UICorner")
+            loopCorner.CornerRadius = UDim.new(0, 6)
+            loopCorner.Parent = loopBtn
+
+            makeClickRipple(playPause)
+            makeClickRipple(stopBtn)
+            makeClickRipple(loopBtn)
+
+            local isPlaying = false
+
+            local function refreshLoop()
+                videoFrame.Looped = loop
+                loopBtn.Text = loop and "Loop: ON" or "Loop: OFF"
+                loopBtn.TextColor3 = loop and accent or Color3.fromRGB(170, 170, 180)
+            end
+            refreshLoop()
+
+            addConnection(playPause.MouseButton1Click, function()
+                if isPlaying then
+                    videoFrame:Pause()
+                    isPlaying = false
+                    playPause.Text = "▶"
+                else
+                    videoFrame:Play()
+                    isPlaying = true
+                    playPause.Text = "⏸"
+                end
+            end)
+
+            addConnection(stopBtn.MouseButton1Click, function()
+                videoFrame:Stop()
+                isPlaying = false
+                playPause.Text = "▶"
+            end)
+
+            addConnection(loopBtn.MouseButton1Click, function()
+                loop = not loop
+                refreshLoop()
+            end)
+
+            updatePageCanvas()
+
+            local api = {}
+            function api:Set(id)
+                videoFrame.Video = id
+                isPlaying = false
+                playPause.Text = "▶"
+            end
+            function api:Play()
+                videoFrame:Play()
+                isPlaying = true
+                playPause.Text = "⏸"
+            end
+            function api:Pause()
+                videoFrame:Pause()
+                isPlaying = false
+                playPause.Text = "▶"
+            end
+            function api:Stop()
+                videoFrame:Stop()
+                isPlaying = false
+                playPause.Text = "▶"
+            end
+            function api:SetSize(size)
+                card.Size = size
+                updatePageCanvas()
+            end
+            function api:SetLoop(v)
+                loop = v and true or false
+                refreshLoop()
+            end
+
+            return api
+        end
+
+        return tab
+    end
+
+    return window
+end
+
+return HubX
