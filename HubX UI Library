@@ -1,5 +1,12 @@
--- HubX UI Library v2_tabsfix
--- Based on your v2 (dropdown fix) + scrollable Tabs sidebar
+-- HubX UI Library v1.0
+-- Author: Donimus & ChatGPT (HubX)
+-- Style: Matte minimalism, dark (black / grey) with blue accents
+
+-- Usage example:
+-- local HubX = loadstring(game:HttpGet("https://raw.githubusercontent.com/Donimus6758/HubX-UI-Library/refs/heads/main/HubX%20UI%20Library"))()
+-- local Window = HubX:CreateWindow({Title = "My Hub", Subtitle = "Example"})
+-- local Tab = Window:CreateTab("Main")
+-- Tab:CreateButton({Text = "Click me", Callback = function() print("Clicked") end})
 
 local HubX = {}
 
@@ -31,12 +38,16 @@ HubX.Theme = {
 }
 
 local function createGui()
-    if HubX._gui and HubX._gui.Parent then return end
+    if HubX._gui and HubX._gui.Parent then
+        return
+    end
 
-    local parent
+    local parent = nil
+
     pcall(function()
         parent = game:GetService("CoreGui")
     end)
+
     if not parent or not parent:IsDescendantOf(game) then
         local plr = Players.LocalPlayer
         parent = plr:WaitForChild("PlayerGui")
@@ -55,7 +66,6 @@ local function createGui()
     notiHolder.Position = UDim2.new(1, -20, 1, -20)
     notiHolder.Size = UDim2.new(0, 300, 0, 0)
     notiHolder.BackgroundTransparency = 1
-    notiHolder.ZIndex = 40
     notiHolder.Parent = gui
 
     local layout = Instance.new("UIListLayout")
@@ -68,8 +78,11 @@ local function createGui()
     local popupLayer = Instance.new("Frame")
     popupLayer.Name = "PopupLayer"
     popupLayer.BackgroundTransparency = 1
+    popupLayer.BorderSizePixel = 0
     popupLayer.Size = UDim2.new(1, 0, 1, 0)
-    popupLayer.ZIndex = 30
+    popupLayer.Position = UDim2.new(0, 0, 0, 0)
+    popupLayer.ZIndex = 50
+    popupLayer.ClipsDescendants = false
     popupLayer.Parent = gui
 
     HubX._gui = gui
@@ -94,26 +107,29 @@ local function makeDraggable(frame, dragHandle)
     end
 
     dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
 
-            local moveConn
-            local releaseConn
+            local moveConnection
+            local releaseConnection
 
-            moveConn = UIS.InputChanged:Connect(function(changed)
+            moveConnection = UIS.InputChanged:Connect(function(changed)
                 if changed == input and dragging then
                     update(changed)
                 end
             end)
 
-            releaseConn = input.Changed:Connect(function()
+            releaseConnection = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
-                    if moveConn then moveConn:Disconnect() end
-                    if releaseConn then releaseConn:Disconnect() end
+                    if moveConnection then
+                        moveConnection:Disconnect()
+                    end
+                    if releaseConnection then
+                        releaseConnection:Disconnect()
+                    end
                 end
             end)
         end
@@ -135,7 +151,6 @@ local function createElementBase(tab, height)
     item.Size = UDim2.new(1, 0, 0, height or 42)
     item.BackgroundColor3 = theme.Element
     item.BorderSizePixel = 0
-    item.ZIndex = 5
     item.Parent = container
 
     local corner = Instance.new("UICorner")
@@ -170,7 +185,6 @@ function HubX:Notify(title, text, duration)
     frame.BackgroundColor3 = theme.Notification
     frame.BackgroundTransparency = 0
     frame.BorderSizePixel = 0
-    frame.ZIndex = 41
     frame.Parent = holder
 
     local corner = Instance.new("UICorner")
@@ -198,7 +212,6 @@ function HubX:Notify(title, text, duration)
     titleLabel.TextColor3 = theme.Text
     titleLabel.TextSize = 14
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.ZIndex = 42
     titleLabel.Parent = frame
 
     local bodyLabel = Instance.new("TextLabel")
@@ -213,7 +226,6 @@ function HubX:Notify(title, text, duration)
     bodyLabel.TextColor3 = theme.SubText
     bodyLabel.TextSize = 13
     bodyLabel.TextXAlignment = Enum.TextXAlignment.Left
-    bodyLabel.ZIndex = 42
     bodyLabel.Parent = frame
 
     frame.BackgroundTransparency = 1
@@ -265,7 +277,6 @@ function HubX:CreateWindow(config)
     windowFrame.BackgroundColor3 = theme.Background
     windowFrame.BorderSizePixel = 0
     windowFrame.ClipsDescendants = true
-    windowFrame.ZIndex = 5
     windowFrame.Parent = HubX._gui
 
     local shadow = Instance.new("ImageLabel")
@@ -279,7 +290,7 @@ function HubX:CreateWindow(config)
     shadow.ImageTransparency = 0.35
     shadow.ScaleType = Enum.ScaleType.Slice
     shadow.SliceCenter = Rect.new(24, 24, 276, 276)
-    shadow.ZIndex = 4
+    shadow.ZIndex = 0
     shadow.Parent = windowFrame
 
     local corner = Instance.new("UICorner")
@@ -291,7 +302,6 @@ function HubX:CreateWindow(config)
     topbar.Size = UDim2.new(1, 0, 0, 36)
     topbar.BackgroundColor3 = theme.Topbar
     topbar.BorderSizePixel = 0
-    topbar.ZIndex = 6
     topbar.Parent = windowFrame
 
     local topCorner = Instance.new("UICorner")
@@ -305,7 +315,6 @@ function HubX:CreateWindow(config)
     topMask.Size = UDim2.new(1, 0, 0, 8)
     topMask.BackgroundColor3 = theme.Topbar
     topMask.BorderSizePixel = 0
-    topMask.ZIndex = 6
     topMask.Parent = topbar
 
     local titleLabel = Instance.new("TextLabel")
@@ -318,7 +327,6 @@ function HubX:CreateWindow(config)
     titleLabel.TextSize = 16
     titleLabel.TextColor3 = theme.Text
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.ZIndex = 7
     titleLabel.Parent = topbar
 
     local subtitleLabel = Instance.new("TextLabel")
@@ -331,7 +339,6 @@ function HubX:CreateWindow(config)
     subtitleLabel.TextSize = 13
     subtitleLabel.TextColor3 = theme.SubText
     subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    subtitleLabel.ZIndex = 7
     subtitleLabel.Parent = topbar
 
     local closeButton = Instance.new("TextButton")
@@ -345,7 +352,6 @@ function HubX:CreateWindow(config)
     closeButton.Font = Enum.Font.GothamBold
     closeButton.TextSize = 16
     closeButton.TextColor3 = theme.SubText
-    closeButton.ZIndex = 7
     closeButton.Parent = topbar
 
     local closeCorner = Instance.new("UICorner")
@@ -367,12 +373,12 @@ function HubX:CreateWindow(config)
     end)
 
     closeButton.MouseButton1Click:Connect(function()
-        local tween = TweenService:Create(windowFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        TweenService:Create(windowFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             BackgroundTransparency = 1
-        })
-        tween:Play()
-        tween.Completed:Wait()
-        windowFrame:Destroy()
+        }):Play()
+        task.delay(0.25, function()
+            windowFrame:Destroy()
+        end)
     end)
 
     local sidebar = Instance.new("Frame")
@@ -381,7 +387,6 @@ function HubX:CreateWindow(config)
     sidebar.Size = UDim2.new(0, 150, 1, -36)
     sidebar.BackgroundColor3 = theme.BackgroundAlt
     sidebar.BorderSizePixel = 0
-    sidebar.ZIndex = 5
     sidebar.Parent = windowFrame
 
     local sidebarCorner = Instance.new("UICorner")
@@ -395,27 +400,26 @@ function HubX:CreateWindow(config)
     sidebarPadding.PaddingRight = UDim.new(0, 10)
     sidebarPadding.Parent = sidebar
 
-    -- scrollable tab list
-    local tabScroll = Instance.new("ScrollingFrame")
-    tabScroll.Name = "TabList"
-    tabScroll.BackgroundTransparency = 1
-    tabScroll.BorderSizePixel = 0
-    tabScroll.Size = UDim2.new(1, 0, 1, 0)
-    tabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    tabScroll.ScrollBarThickness = 3
-    tabScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
-    tabScroll.VerticalScrollBarInset = Enum.ScrollBarInset.Always
-    tabScroll.ZIndex = 6
-    tabScroll.Parent = sidebar
+    -- Scrollable tab list (tabs fix)
+    local tabList = Instance.new("ScrollingFrame")
+    tabList.Name = "TabList"
+    tabList.BackgroundTransparency = 1
+    tabList.BorderSizePixel = 0
+    tabList.Size = UDim2.new(1, 0, 1, 0)
+    tabList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    tabList.ScrollBarThickness = 3
+    tabList.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
+    tabList.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+    tabList.ZIndex = 2
+    tabList.Parent = sidebar
 
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.Padding = UDim.new(0, 6)
-    tabLayout.Parent = tabScroll
+    tabLayout.Parent = tabList
 
     tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        local contentSize = tabLayout.AbsoluteContentSize.Y
-        tabScroll.CanvasSize = UDim2.new(0, 0, 0, contentSize + 10)
+        tabList.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 10)
     end)
 
     local content = Instance.new("Frame")
@@ -424,7 +428,6 @@ function HubX:CreateWindow(config)
     content.Size = UDim2.new(1, -150, 1, -36)
     content.BackgroundColor3 = theme.Background
     content.BorderSizePixel = 0
-    content.ZIndex = 5
     content.Parent = windowFrame
 
     local contentCorner = Instance.new("UICorner")
@@ -447,18 +450,21 @@ function HubX:CreateWindow(config)
 
     local window = {
         _frame = windowFrame,
-        _tabList = tabScroll,
+        _tabList = tabList,
         _content = content,
         _tabs = {},
         _activeTab = nil,
     }
 
     setmetatable(window, WindowMethods)
+
     return window
 end
 
 function WindowMethods:_setActiveTab(tab)
-    if self._activeTab == tab then return end
+    if self._activeTab == tab then
+        return
+    end
 
     for _, t in ipairs(self._tabs) do
         if t._button then
@@ -489,7 +495,6 @@ function WindowMethods:CreateTab(name)
     button.BackgroundColor3 = theme.Element
     button.AutoButtonColor = false
     button.Text = ""
-    button.ZIndex = 7
     button.Parent = self._tabList
 
     local buttonCorner = Instance.new("UICorner")
@@ -506,7 +511,6 @@ function WindowMethods:CreateTab(name)
     label.TextColor3 = theme.SubText
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextYAlignment = Enum.TextYAlignment.Center
-    label.ZIndex = 8
     label.Parent = button
 
     local padding = Instance.new("UIPadding")
@@ -514,14 +518,18 @@ function WindowMethods:CreateTab(name)
     padding.Parent = button
 
     button.MouseEnter:Connect(function()
-        if self._activeTab and self._activeTab._button == button then return end
+        if self._activeTab and self._activeTab._button == button then
+            return
+        end
         TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundColor3 = theme.ElementOutline
         }):Play()
     end)
 
     button.MouseLeave:Connect(function()
-        if self._activeTab and self._activeTab._button == button then return end
+        if self._activeTab and self._activeTab._button == button then
+            return
+        end
         TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundColor3 = theme.Element
         }):Play()
@@ -535,7 +543,6 @@ function WindowMethods:CreateTab(name)
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
     page.Visible = false
-    page.ZIndex = 5
     page.Parent = self._content
 
     local pageLayout = Instance.new("UIListLayout")
@@ -574,7 +581,6 @@ function WindowMethods:CreateTab(name)
     return tab
 end
 
--- BUTTON
 function TabMethods:CreateButton(opts)
     opts = opts or {}
     local text = opts.Text or "Button"
@@ -586,13 +592,13 @@ function TabMethods:CreateButton(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -110, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
     label.TextColor3 = theme.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 6
     label.Parent = item
 
     local btn = Instance.new("TextButton")
@@ -606,7 +612,6 @@ function TabMethods:CreateButton(opts)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 13
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.ZIndex = 6
     btn.Parent = item
 
     local btnCorner = Instance.new("UICorner")
@@ -638,7 +643,6 @@ function TabMethods:CreateButton(opts)
     }
 end
 
--- TOGGLE
 function TabMethods:CreateToggle(opts)
     opts = opts or {}
     local text = opts.Text or "Toggle"
@@ -651,13 +655,13 @@ function TabMethods:CreateToggle(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -80, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
     label.TextColor3 = theme.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 6
     label.Parent = item
 
     local toggleBtn = Instance.new("TextButton")
@@ -668,7 +672,6 @@ function TabMethods:CreateToggle(opts)
     toggleBtn.BackgroundColor3 = default and theme.ToggleOn or theme.ToggleOff
     toggleBtn.AutoButtonColor = false
     toggleBtn.Text = ""
-    toggleBtn.ZIndex = 6
     toggleBtn.Parent = item
 
     local toggleCorner = Instance.new("UICorner")
@@ -681,7 +684,6 @@ function TabMethods:CreateToggle(opts)
     knob.Size = UDim2.new(0, 16, 0, 16)
     knob.Position = default and UDim2.new(1, -10, 0.5, 0) or UDim2.new(0, 10, 0.5, 0)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.ZIndex = 7
     knob.Parent = toggleBtn
 
     local knobCorner = Instance.new("UICorner")
@@ -727,33 +729,33 @@ function TabMethods:CreateToggle(opts)
     }
 end
 
--- SLIDER (touch-friendly)
 function TabMethods:CreateSlider(opts)
     opts = opts or {}
     local text = opts.Text or "Slider"
     local min = opts.Min or 0
     local max = opts.Max or 100
-    local default = opts.Default
+    local default = opts.Default or min
     local callback = opts.Callback or function() end
     local theme = HubX.Theme
 
-    if max <= min then max = min + 1 end
-    if default == nil then default = min end
+    if max <= min then
+        max = min + 1
+    end
     if default < min then default = min end
     if default > max then default = max end
 
-    local item = createElementBase(self, 52)
+    local item = createElementBase(self, 56)
 
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Size = UDim2.new(1, -40, 0, 22)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Size = UDim2.new(1, -60, 0, 24)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
     label.TextColor3 = theme.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 6
     label.Parent = item
 
     local valueLabel = Instance.new("TextLabel")
@@ -761,135 +763,155 @@ function TabMethods:CreateSlider(opts)
     valueLabel.BackgroundTransparency = 1
     valueLabel.AnchorPoint = Vector2.new(1, 0)
     valueLabel.Position = UDim2.new(1, 0, 0, 0)
-    valueLabel.Size = UDim2.new(0, 40, 0, 22)
+    valueLabel.Size = UDim2.new(0, 46, 0, 24)
     valueLabel.Font = Enum.Font.Gotham
     valueLabel.Text = tostring(default)
     valueLabel.TextSize = 13
     valueLabel.TextColor3 = theme.SubText
     valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valueLabel.ZIndex = 6
     valueLabel.Parent = item
+
+    local trackHolder = Instance.new("Frame")
+    trackHolder.Name = "TrackHolder"
+    trackHolder.Position = UDim2.new(0, 0, 0, 30)
+    trackHolder.Size = UDim2.new(1, 0, 0, 16)
+    trackHolder.BackgroundTransparency = 1
+    trackHolder.Parent = item
 
     local track = Instance.new("Frame")
     track.Name = "Track"
-    track.Position = UDim2.new(0, 0, 0, 26)
-    track.Size = UDim2.new(1, 0, 0, 8)
+    track.AnchorPoint = Vector2.new(0.5, 0.5)
+    track.Position = UDim2.new(0.5, 0, 0.5, 0)
+    track.Size = UDim2.new(1, -8, 0, 6)
     track.BackgroundColor3 = theme.SliderTrack
     track.BorderSizePixel = 0
-    track.ZIndex = 6
-    track.Parent = item
+    track.Parent = trackHolder
 
     local trackCorner = Instance.new("UICorner")
     trackCorner.CornerRadius = UDim.new(0, 999)
     trackCorner.Parent = track
 
-    local glow = Instance.new("ImageLabel")
-    glow.Name = "Glow"
-    glow.BackgroundTransparency = 1
-    glow.AnchorPoint = Vector2.new(0, 0.5)
-    glow.Position = UDim2.new(0, 0, 0.5, 0)
-    glow.Size = UDim2.new(0, 0, 1.8, 0)
-    glow.Image = "rbxassetid://5028857084"
-    glow.ImageColor3 = theme.SliderFill
-    glow.ImageTransparency = 0.35
-    glow.ScaleType = Enum.ScaleType.Slice
-    glow.SliceCenter = Rect.new(24,24,276,276)
-    glow.ZIndex = 5
-    glow.Parent = track
+    local trackStroke = Instance.new("UIStroke")
+    trackStroke.Color = theme.ElementOutline
+    trackStroke.Thickness = 1
+    trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    trackStroke.Parent = track
 
     local fill = Instance.new("Frame")
     fill.Name = "Fill"
-    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.AnchorPoint = Vector2.new(0, 0.5)
+    fill.Position = UDim2.new(0, 0, 0.5, 0)
+    fill.Size = UDim2.new(0, 0, 1.4, 0)
     fill.BackgroundColor3 = theme.SliderFill
     fill.BorderSizePixel = 0
-    fill.ZIndex = 7
     fill.Parent = track
 
     local fillCorner = Instance.new("UICorner")
     fillCorner.CornerRadius = UDim.new(0, 999)
     fillCorner.Parent = fill
 
-    local knobHit = Instance.new("TextButton")
-    knobHit.Name = "KnobHitbox"
-    knobHit.BackgroundTransparency = 1
-    knobHit.Size = UDim2.new(1, 0, 3, 0)
-    knobHit.Position = UDim2.new(0, 0, -1, 0)
-    knobHit.Text = ""
-    knobHit.ZIndex = 8
-    knobHit.Parent = track
-
     local knob = Instance.new("Frame")
     knob.Name = "Knob"
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
     knob.Size = UDim2.new(0, 14, 0, 14)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.ZIndex = 9
+    knob.BackgroundColor3 = Color3.fromRGB(245, 245, 255)
     knob.Parent = track
 
     local knobCorner = Instance.new("UICorner")
     knobCorner.CornerRadius = UDim.new(1, 0)
     knobCorner.Parent = knob
 
-    local currentValue = default
+    local knobStroke = Instance.new("UIStroke")
+    knobStroke.Color = theme.Accent
+    knobStroke.Thickness = 1
+    knobStroke.Parent = knob
 
-    local function setFromPercent(p, fire)
+    local hitbox = Instance.new("TextButton")
+    hitbox.Name = "Hitbox"
+    hitbox.BackgroundTransparency = 1
+    hitbox.Text = ""
+    hitbox.AutoButtonColor = false
+    hitbox.Size = UDim2.new(1, 0, 1, 10)
+    hitbox.Position = UDim2.new(0, 0, 0, -5)
+    hitbox.Parent = trackHolder
+
+    local currentValue = default
+    local dragging = false
+
+    local function setValueFromPercent(p, fireCallback)
         p = math.clamp(p, 0, 1)
         local val = min + (max - min) * p
         val = math.floor(val + 0.5)
         currentValue = val
         valueLabel.Text = tostring(val)
 
-        local tweenTime = 0.08
-        TweenService:Create(fill, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-            Size = UDim2.new(p, 0, 1, 0)
-        }):Play()
-        TweenService:Create(glow, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-            Size = UDim2.new(p, 6, 1.8, 6)
+        TweenService:Create(fill, TweenInfo.new(0.08, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+            Size = UDim2.new(p, 0, 1.4, 0)
         }):Play()
         knob.Position = UDim2.new(p, 0, 0.5, 0)
 
-        if fire then
+        if fireCallback then
             task.spawn(function()
                 pcall(callback, val)
             end)
         end
     end
 
-    local function updateFromInput(input, fire)
-        local rel = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
-        setFromPercent(rel, fire)
+    local function updateFromInput(input, fireCallback)
+        if not track or track.AbsoluteSize.X == 0 then
+            return
+        end
+        local relX = (input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X
+        setValueFromPercent(relX, fireCallback)
     end
 
-    local dragging = false
+    local function setDragging(state)
+        dragging = state
+        local targetColor = state and theme.Accent or theme.SliderTrack
+        TweenService:Create(track, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            BackgroundColor3 = targetColor
+        }):Play()
+    end
 
     local function beginDrag(input)
-        dragging = true
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        setDragging(true)
         updateFromInput(input, true)
     end
 
-    knobHit.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            beginDrag(input)
+    local function endDrag(input)
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then
+            return
         end
-    end)
+        if dragging then
+            setDragging(false)
+        end
+    end
 
-    knobHit.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
+    hitbox.InputBegan:Connect(beginDrag)
+    track.InputBegan:Connect(beginDrag)
+    knob.InputBegan:Connect(beginDrag)
+
+    hitbox.InputEnded:Connect(endDrag)
+    track.InputEnded:Connect(endDrag)
+    knob.InputEnded:Connect(endDrag)
 
     UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch) then
+        if not dragging then
+            return
+        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
             updateFromInput(input, true)
         end
     end)
 
     local initialPercent = (default - min) / (max - min)
-    setFromPercent(initialPercent, false)
+    setValueFromPercent(initialPercent, false)
     task.spawn(function()
         pcall(callback, currentValue)
     end)
@@ -899,7 +921,7 @@ function TabMethods:CreateSlider(opts)
             if v < min then v = min end
             if v > max then v = max end
             local p = (v - min) / (max - min)
-            setFromPercent(p, true)
+            setValueFromPercent(p, true)
         end,
         Get = function()
             return currentValue
@@ -907,7 +929,6 @@ function TabMethods:CreateSlider(opts)
     }
 end
 
--- TEXTBOX
 function TabMethods:CreateTextbox(opts)
     opts = opts or {}
     local text = opts.Text or "Textbox"
@@ -921,13 +942,13 @@ function TabMethods:CreateTextbox(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -160, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
     label.TextColor3 = theme.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 6
     label.Parent = item
 
     local box = Instance.new("TextBox")
@@ -944,7 +965,6 @@ function TabMethods:CreateTextbox(opts)
     box.TextColor3 = theme.Text
     box.PlaceholderColor3 = theme.Placeholder
     box.ClearTextOnFocus = false
-    box.ZIndex = 6
     box.Parent = item
 
     local boxCorner = Instance.new("UICorner")
@@ -962,7 +982,7 @@ function TabMethods:CreateTextbox(opts)
         end)
     end
 
-    box.FocusLost:Connect(function()
+    box.FocusLost:Connect(function(enterPressed)
         fire()
     end)
 
@@ -977,14 +997,6 @@ function TabMethods:CreateTextbox(opts)
     }
 end
 
-local function getScreenSize()
-    if HubX._gui then
-        return HubX._gui.AbsoluteSize
-    end
-    return Vector2.new(800, 600)
-end
-
--- DROPDOWN (popup + scroll)
 function TabMethods:CreateDropdown(opts)
     opts = opts or {}
     local text = opts.Text or "Dropdown"
@@ -993,18 +1005,20 @@ function TabMethods:CreateDropdown(opts)
     local callback = opts.Callback or function() end
     local theme = HubX.Theme
 
+    createGui()
+
     local item = createElementBase(self, 46)
 
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -160, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
     label.TextColor3 = theme.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 6
     label.Parent = item
 
     local main = Instance.new("Frame")
@@ -1014,7 +1028,7 @@ function TabMethods:CreateDropdown(opts)
     main.Size = UDim2.new(0, 140, 0, 26)
     main.BackgroundColor3 = theme.BackgroundAlt
     main.BorderSizePixel = 0
-    main.ZIndex = 6
+    main.ZIndex = 3
     main.Parent = item
 
     local mainCorner = Instance.new("UICorner")
@@ -1036,7 +1050,7 @@ function TabMethods:CreateDropdown(opts)
     currentLabel.TextSize = 13
     currentLabel.TextColor3 = theme.Text
     currentLabel.TextXAlignment = Enum.TextXAlignment.Left
-    currentLabel.ZIndex = 7
+    currentLabel.ZIndex = 4
     currentLabel.Parent = main
 
     local arrow = Instance.new("TextLabel")
@@ -1050,7 +1064,7 @@ function TabMethods:CreateDropdown(opts)
     arrow.TextSize = 12
     arrow.TextColor3 = theme.SubText
     arrow.TextXAlignment = Enum.TextXAlignment.Center
-    arrow.ZIndex = 7
+    arrow.ZIndex = 4
     arrow.Parent = main
 
     local button = Instance.new("TextButton")
@@ -1058,59 +1072,52 @@ function TabMethods:CreateDropdown(opts)
     button.BackgroundTransparency = 1
     button.Size = UDim2.new(1, 0, 1, 0)
     button.Text = ""
-    button.ZIndex = 8
+    button.ZIndex = 5
     button.Parent = main
 
-    local popupFrame = Instance.new("Frame")
-    popupFrame.Name = "DropdownPopup"
-    popupFrame.BackgroundTransparency = 1
-    popupFrame.Size = UDim2.new(0, 0, 0, 0)
-    popupFrame.Visible = false
-    popupFrame.ZIndex = 30
-    popupFrame.Parent = HubX._popupLayer
-
-    local listHolder = Instance.new("Frame")
-    listHolder.Name = "ListHolder"
-    listHolder.BackgroundColor3 = theme.BackgroundAlt
-    listHolder.BorderSizePixel = 0
-    listHolder.Size = UDim2.new(0, 140, 0, 0)
-    listHolder.ZIndex = 31
-    listHolder.Parent = popupFrame
+    local listFrame = Instance.new("ScrollingFrame")
+    listFrame.Name = "List"
+    listFrame.BackgroundColor3 = theme.BackgroundAlt
+    listFrame.BorderSizePixel = 0
+    listFrame.Size = UDim2.new(0, 140, 0, 0)
+    listFrame.Visible = false
+    listFrame.ClipsDescendants = true
+    listFrame.ZIndex = 50
+    listFrame.ScrollBarThickness = 4
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    listFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
+    if HubX._popupLayer then
+        listFrame.Parent = HubX._popupLayer
+    else
+        listFrame.Parent = item
+    end
 
     local listCorner = Instance.new("UICorner")
     listCorner.CornerRadius = UDim.new(0, 6)
-    listCorner.Parent = listHolder
+    listCorner.Parent = listFrame
 
     local listStroke = Instance.new("UIStroke")
     listStroke.Color = theme.ElementOutline
     listStroke.Thickness = 1
-    listStroke.Parent = listHolder
-
-    local listScroll = Instance.new("ScrollingFrame")
-    listScroll.Name = "ListScroll"
-    listScroll.BackgroundTransparency = 1
-    listScroll.BorderSizePixel = 0
-    listScroll.Size = UDim2.new(1, 0, 1, 0)
-    listScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    listScroll.ScrollBarThickness = 3
-    listScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
-    listScroll.ZIndex = 32
-    listScroll.Parent = listHolder
+    listStroke.Parent = listFrame
 
     local listLayout = Instance.new("UIListLayout")
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
     listLayout.Padding = UDim.new(0, 2)
-    listLayout.Parent = listScroll
+    listLayout.Parent = listFrame
 
     local listPadding = Instance.new("UIPadding")
     listPadding.PaddingTop = UDim.new(0, 4)
     listPadding.PaddingBottom = UDim.new(0, 4)
     listPadding.PaddingLeft = UDim.new(0, 4)
     listPadding.PaddingRight = UDim.new(0, 4)
-    listPadding.Parent = listScroll
+    listPadding.Parent = listFrame
+
+    local MAX_HEIGHT = 130
 
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        listScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 8)
+        local contentSize = listLayout.AbsoluteContentSize.Y + 8
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, contentSize)
     end)
 
     local opened = false
@@ -1126,8 +1133,56 @@ function TabMethods:CreateDropdown(opts)
         end
     end
 
+    local function open()
+        if opened then return end
+        opened = true
+        listFrame.Visible = true
+
+        if HubX._gui then
+            local absPos = main.AbsolutePosition
+            local absSize = main.AbsoluteSize
+            local guiSize = HubX._gui.AbsoluteSize
+
+            local contentSize = listLayout.AbsoluteContentSize.Y + 8
+            local targetHeight = math.min(contentSize, MAX_HEIGHT)
+
+            local x = absPos.X
+            local y = absPos.Y + absSize.Y + 4
+
+            if y + targetHeight > guiSize.Y then
+                y = absPos.Y - targetHeight - 4
+            end
+
+            listFrame.Position = UDim2.fromOffset(x, y)
+        end
+
+        local contentSize = listLayout.AbsoluteContentSize.Y + 8
+        local targetHeight = math.min(contentSize, MAX_HEIGHT)
+
+        TweenService:Create(listFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 140, 0, targetHeight)
+        }):Play()
+        TweenService:Create(arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Rotation = 180
+        }):Play()
+    end
+
+    local function close()
+        if not opened then return end
+        opened = false
+        local tween = TweenService:Create(listFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 140, 0, 0)
+        })
+        TweenService:Create(arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Rotation = 0
+        }):Play()
+        tween:Play()
+        tween.Completed:Wait()
+        listFrame.Visible = false
+    end
+
     local function refresh()
-        for _, child in ipairs(listScroll:GetChildren()) do
+        for _, child in ipairs(listFrame:GetChildren()) do
             if child:IsA("TextButton") and child.Name == "Item" then
                 child:Destroy()
             end
@@ -1140,8 +1195,8 @@ function TabMethods:CreateDropdown(opts)
             btn.BackgroundColor3 = theme.Element
             btn.AutoButtonColor = false
             btn.Text = ""
-            btn.ZIndex = 33
-            btn.Parent = listScroll
+            btn.ZIndex = 51
+            btn.Parent = listFrame
 
             local btnCorner = Instance.new("UICorner")
             btnCorner.CornerRadius = UDim.new(0, 4)
@@ -1155,7 +1210,7 @@ function TabMethods:CreateDropdown(opts)
             lbl.TextSize = 13
             lbl.TextColor3 = theme.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left
-            lbl.ZIndex = 34
+            lbl.ZIndex = 52
             lbl.Parent = btn
 
             local pad = Instance.new("UIPadding")
@@ -1176,58 +1231,12 @@ function TabMethods:CreateDropdown(opts)
 
             btn.MouseButton1Click:Connect(function()
                 setSelected(v, true)
-                if opened then
-                    opened = false
-                    popupFrame.Visible = false
-                    arrow.Rotation = 0
-                end
+                close()
             end)
         end
-
-        local totalHeight = listLayout.AbsoluteContentSize.Y + 8
-        local maxHeight = 160
-        local finalHeight = math.min(totalHeight, maxHeight)
-        listHolder.Size = UDim2.new(0, 140, 0, finalHeight)
     end
 
     refresh()
-
-    local function open()
-        if opened then return end
-        opened = true
-
-        local absPos = main.AbsolutePosition
-        local absSize = main.AbsoluteSize
-        local screenSize = getScreenSize()
-
-        local popupX = absPos.X
-        local popupY = absPos.Y + absSize.Y + 2
-        local popupWidth = 140
-        local popupHeight = listHolder.Size.Y.Offset
-
-        if popupY + popupHeight > screenSize.Y - 10 then
-            popupY = absPos.Y - popupHeight - 2
-        end
-
-        popupFrame.Position = UDim2.fromOffset(popupX, popupY)
-        popupFrame.Size = UDim2.fromOffset(popupWidth, popupHeight)
-        listHolder.Position = UDim2.new(0, 0, 0, 0)
-
-        popupFrame.Visible = true
-        TweenService:Create(listHolder, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            BackgroundTransparency = 0
-        }):Play()
-        TweenService:Create(arrow, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Rotation = 180
-        }):Play()
-    end
-
-    local function close()
-        if not opened then return end
-        opened = false
-        popupFrame.Visible = false
-        arrow.Rotation = 0
-    end
 
     button.MouseButton1Click:Connect(function()
         if opened then
@@ -1257,7 +1266,6 @@ function TabMethods:CreateDropdown(opts)
     }
 end
 
--- COLOR PICKER (popup)
 function TabMethods:CreateColorPicker(opts)
     opts = opts or {}
     local text = opts.Text or "Color"
@@ -1265,18 +1273,20 @@ function TabMethods:CreateColorPicker(opts)
     local callback = opts.Callback or function() end
     local theme = HubX.Theme
 
+    createGui()
+
     local item = createElementBase(self, 46)
 
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -160, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
     label.TextSize = 14
     label.TextColor3 = theme.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 6
     label.Parent = item
 
     local button = Instance.new("TextButton")
@@ -1287,7 +1297,6 @@ function TabMethods:CreateColorPicker(opts)
     button.BackgroundColor3 = theme.BackgroundAlt
     button.AutoButtonColor = false
     button.Text = ""
-    button.ZIndex = 6
     button.Parent = item
 
     local buttonCorner = Instance.new("UICorner")
@@ -1306,7 +1315,6 @@ function TabMethods:CreateColorPicker(opts)
     preview.Size = UDim2.new(0, 32, 0, 18)
     preview.BackgroundColor3 = default
     preview.BorderSizePixel = 0
-    preview.ZIndex = 7
     preview.Parent = button
 
     local previewCorner = Instance.new("UICorner")
@@ -1322,7 +1330,6 @@ function TabMethods:CreateColorPicker(opts)
     hexLabel.TextSize = 13
     hexLabel.TextColor3 = theme.Text
     hexLabel.TextXAlignment = Enum.TextXAlignment.Left
-    hexLabel.ZIndex = 7
     hexLabel.Parent = button
 
     local function colorToHex(c)
@@ -1335,21 +1342,18 @@ function TabMethods:CreateColorPicker(opts)
     local currentColor = default
     hexLabel.Text = colorToHex(currentColor)
 
-    local popupFrame = Instance.new("Frame")
-    popupFrame.Name = "ColorPopup"
-    popupFrame.BackgroundTransparency = 1
-    popupFrame.Size = UDim2.new(0, 0, 0, 0)
-    popupFrame.Visible = false
-    popupFrame.ZIndex = 30
-    popupFrame.Parent = HubX._popupLayer
-
     local palette = Instance.new("Frame")
     palette.Name = "Palette"
     palette.BackgroundColor3 = theme.BackgroundAlt
     palette.BorderSizePixel = 0
-    palette.Size = UDim2.new(0, 180, 0, 26)
-    palette.ZIndex = 31
-    palette.Parent = popupFrame
+    palette.Size = UDim2.new(0, 180, 0, 0)
+    palette.Visible = false
+    palette.ZIndex = 50
+    if HubX._popupLayer then
+        palette.Parent = HubX._popupLayer
+    else
+        palette.Parent = item
+    end
 
     local paletteCorner = Instance.new("UICorner")
     paletteCorner.CornerRadius = UDim.new(0, 6)
@@ -1380,7 +1384,6 @@ function TabMethods:CreateColorPicker(opts)
     selector.Position = UDim2.new(0, 0, 0.5, 0)
     selector.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     selector.BorderSizePixel = 0
-    selector.ZIndex = 32
     selector.Parent = palette
 
     local selectorCorner = Instance.new("UICorner")
@@ -1406,31 +1409,38 @@ function TabMethods:CreateColorPicker(opts)
     local function open()
         if opened then return end
         opened = true
+        palette.Visible = true
 
-        local absPos = button.AbsolutePosition
-        local absSize = button.AbsoluteSize
-        local screenSize = getScreenSize()
+        if HubX._gui then
+            local absPos = button.AbsolutePosition
+            local absSize = button.AbsoluteSize
+            local guiSize = HubX._gui.AbsoluteSize
 
-        local popupX = absPos.X
-        local popupY = absPos.Y + absSize.Y + 2
-        local popupWidth = 180
-        local popupHeight = 26
+            local height = 26
+            local x = absPos.X
+            local y = absPos.Y + absSize.Y + 4
 
-        if popupY + popupHeight > screenSize.Y - 10 then
-            popupY = absPos.Y - popupHeight - 2
+            if y + height > guiSize.Y then
+                y = absPos.Y - height - 4
+            end
+
+            palette.Position = UDim2.fromOffset(x, y)
         end
 
-        popupFrame.Position = UDim2.fromOffset(popupX, popupY)
-        popupFrame.Size = UDim2.fromOffset(popupWidth, popupHeight)
-        palette.Position = UDim2.new(0, 0, 0, 0)
-
-        popupFrame.Visible = true
+        TweenService:Create(palette, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 180, 0, 26)
+        }):Play()
     end
 
     local function close()
         if not opened then return end
         opened = false
-        popupFrame.Visible = false
+        local tween = TweenService:Create(palette, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 180, 0, 0)
+        })
+        tween:Play()
+        tween.Completed:Wait()
+        palette.Visible = false
     end
 
     button.MouseButton1Click:Connect(function()
@@ -1443,30 +1453,24 @@ function TabMethods:CreateColorPicker(opts)
 
     local dragging = false
 
-    local function updateFromInput(input, fire)
-        local rel = (input.Position.X - palette.AbsolutePosition.X) / palette.AbsoluteSize.X
-        setColorFromPercent(rel, fire)
-    end
-
     palette.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            updateFromInput(input, true)
+            local rel = (input.Position.X - palette.AbsolutePosition.X) / palette.AbsoluteSize.X
+            setColorFromPercent(rel, true)
         end
     end)
 
     palette.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch) then
-            updateFromInput(input, true)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local rel = (input.Position.X - palette.AbsolutePosition.X) / palette.AbsoluteSize.X
+            setColorFromPercent(rel, true)
         end
     end)
 
@@ -1480,7 +1484,7 @@ function TabMethods:CreateColorPicker(opts)
                 currentColor = c
                 preview.BackgroundColor3 = c
                 hexLabel.Text = colorToHex(c)
-                local h = c:ToHSV()
+                local h, s, v = c:ToHSV()
                 selector.Position = UDim2.new(h, 0, 0.5, 0)
                 task.spawn(function()
                     pcall(callback, c)
@@ -1493,11 +1497,11 @@ function TabMethods:CreateColorPicker(opts)
     }
 end
 
--- PLAYER SELECTOR
 function TabMethods:CreatePlayerSelector(opts)
     opts = opts or {}
     local text = opts.Text or "Player"
     local callback = opts.Callback or function() end
+    local theme = HubX.Theme
 
     local currentPlayer = nil
     local playerNames = {}
@@ -1515,7 +1519,7 @@ function TabMethods:CreatePlayerSelector(opts)
         Text = text,
         List = playerNames,
         Callback = function(name)
-            local plr
+            local plr = nil
             for _, p in ipairs(Players:GetPlayers()) do
                 if p.Name == name then
                     plr = p
