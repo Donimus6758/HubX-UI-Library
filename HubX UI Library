@@ -1,6 +1,5 @@
--- HubX UI Library v3
--- Dark matte UI with scrollable tabs, popup dropdowns, touch-friendly slider
--- API compatible with previous HubX versions
+-- HubX UI Library v2_tabsfix
+-- Based on your v2 (dropdown fix) + scrollable Tabs sidebar
 
 local HubX = {}
 
@@ -32,9 +31,7 @@ HubX.Theme = {
 }
 
 local function createGui()
-    if HubX._gui and HubX._gui.Parent then
-        return
-    end
+    if HubX._gui and HubX._gui.Parent then return end
 
     local parent
     pcall(function()
@@ -52,7 +49,6 @@ local function createGui()
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.Parent = parent
 
-    -- notifications holder
     local notiHolder = Instance.new("Frame")
     notiHolder.Name = "Notifications"
     notiHolder.AnchorPoint = Vector2.new(1, 1)
@@ -69,7 +65,6 @@ local function createGui()
     layout.Padding = UDim.new(0, 6)
     layout.Parent = notiHolder
 
-    -- popup layer (for dropdowns, color pickers)
     local popupLayer = Instance.new("Frame")
     popupLayer.Name = "PopupLayer"
     popupLayer.BackgroundTransparency = 1
@@ -99,7 +94,8 @@ local function makeDraggable(frame, dragHandle)
     end
 
     dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
@@ -379,7 +375,6 @@ function HubX:CreateWindow(config)
         windowFrame:Destroy()
     end)
 
-    -- sidebar
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
     sidebar.Position = UDim2.new(0, 0, 0, 36)
@@ -397,7 +392,7 @@ function HubX:CreateWindow(config)
     sidebarPadding.PaddingTop = UDim.new(0, 10)
     sidebarPadding.PaddingBottom = UDim.new(0, 10)
     sidebarPadding.PaddingLeft = UDim.new(0, 10)
-    sidebarPadding.PaddingRight = UDim.new(0, 6)
+    sidebarPadding.PaddingRight = UDim.new(0, 10)
     sidebarPadding.Parent = sidebar
 
     -- scrollable tab list
@@ -423,7 +418,6 @@ function HubX:CreateWindow(config)
         tabScroll.CanvasSize = UDim2.new(0, 0, 0, contentSize + 10)
     end)
 
-    -- main content
     local content = Instance.new("Frame")
     content.Name = "Content"
     content.Position = UDim2.new(0, 150, 0, 36)
@@ -464,9 +458,7 @@ function HubX:CreateWindow(config)
 end
 
 function WindowMethods:_setActiveTab(tab)
-    if self._activeTab == tab then
-        return
-    end
+    if self._activeTab == tab then return end
 
     for _, t in ipairs(self._tabs) do
         if t._button then
@@ -522,18 +514,14 @@ function WindowMethods:CreateTab(name)
     padding.Parent = button
 
     button.MouseEnter:Connect(function()
-        if self._activeTab and self._activeTab._button == button then
-            return
-        end
+        if self._activeTab and self._activeTab._button == button then return end
         TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundColor3 = theme.ElementOutline
         }):Play()
     end)
 
     button.MouseLeave:Connect(function()
-        if self._activeTab and self._activeTab._button == button then
-            return
-        end
+        if self._activeTab and self._activeTab._button == button then return end
         TweenService:Create(button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundColor3 = theme.Element
         }):Play()
@@ -598,7 +586,6 @@ function TabMethods:CreateButton(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -110, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
@@ -664,7 +651,6 @@ function TabMethods:CreateToggle(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -80, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
@@ -741,7 +727,7 @@ function TabMethods:CreateToggle(opts)
     }
 end
 
--- SLIDER
+-- SLIDER (touch-friendly)
 function TabMethods:CreateSlider(opts)
     opts = opts or {}
     local text = opts.Text or "Slider"
@@ -761,7 +747,6 @@ function TabMethods:CreateSlider(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -40, 0, 22)
     label.Font = Enum.Font.Gotham
     label.Text = text
@@ -883,19 +868,22 @@ function TabMethods:CreateSlider(opts)
     end
 
     knobHit.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
             beginDrag(input)
         end
     end)
 
     knobHit.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
             updateFromInput(input, true)
         end
     end)
@@ -933,7 +921,6 @@ function TabMethods:CreateTextbox(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -160, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
@@ -990,7 +977,6 @@ function TabMethods:CreateTextbox(opts)
     }
 end
 
--- internal helper: popup position
 local function getScreenSize()
     if HubX._gui then
         return HubX._gui.AbsoluteSize
@@ -998,7 +984,7 @@ local function getScreenSize()
     return Vector2.new(800, 600)
 end
 
--- DROPDOWN
+-- DROPDOWN (popup + scroll)
 function TabMethods:CreateDropdown(opts)
     opts = opts or {}
     local text = opts.Text or "Dropdown"
@@ -1012,7 +998,6 @@ function TabMethods:CreateDropdown(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -160, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
@@ -1194,6 +1179,7 @@ function TabMethods:CreateDropdown(opts)
                 if opened then
                     opened = false
                     popupFrame.Visible = false
+                    arrow.Rotation = 0
                 end
             end)
         end
@@ -1271,7 +1257,7 @@ function TabMethods:CreateDropdown(opts)
     }
 end
 
--- COLOR PICKER
+-- COLOR PICKER (popup)
 function TabMethods:CreateColorPicker(opts)
     opts = opts or {}
     local text = opts.Text or "Color"
@@ -1284,7 +1270,6 @@ function TabMethods:CreateColorPicker(opts)
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 0, 0, 0)
     label.Size = UDim2.new(1, -160, 1, 0)
     label.Font = Enum.Font.Gotham
     label.Text = text
@@ -1464,20 +1449,23 @@ function TabMethods:CreateColorPicker(opts)
     end
 
     palette.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             updateFromInput(input, true)
         end
     end)
 
     palette.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
 
     UIS.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
             updateFromInput(input, true)
         end
     end)
