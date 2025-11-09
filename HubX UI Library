@@ -400,16 +400,27 @@ function HubX:CreateWindow(config)
     sidebarPadding.PaddingRight = UDim.new(0, 10)
     sidebarPadding.Parent = sidebar
 
-    local tabList = Instance.new("Frame")
+    -- Scrollable TabList
+    local tabList = Instance.new("ScrollingFrame")
     tabList.Name = "TabList"
     tabList.BackgroundTransparency = 1
+    tabList.BorderSizePixel = 0
     tabList.Size = UDim2.new(1, 0, 1, 0)
+    tabList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    tabList.ScrollBarThickness = 3
+    tabList.ScrollBarImageColor3 = Color3.fromRGB(80, 84, 98)
+    tabList.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+    tabList.ZIndex = 2
     tabList.Parent = sidebar
 
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.Padding = UDim.new(0, 6)
     tabLayout.Parent = tabList
+
+    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tabList.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 10)
+    end)
 
     local content = Instance.new("Frame")
     content.Name = "Content"
@@ -1333,7 +1344,7 @@ function TabMethods:CreateColorPicker(opts)
 
     local palette = Instance.new("Frame")
     palette.Name = "Palette"
-    palette.BackgroundColor3 = theme.BackgroundAlt
+    palette.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     palette.BorderSizePixel = 0
     palette.Size = UDim2.new(0, 180, 0, 0)
     palette.Visible = false
